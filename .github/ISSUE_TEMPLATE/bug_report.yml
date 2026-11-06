@@ -1,0 +1,45 @@
+name: Report a problem
+description: Something in Dayflower doesn't work as it should.
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: And what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can it be made to happen?
+      description: The steps that lead to it, if you know them.
+  - type: input
+    id: version
+    attributes:
+      label: Dayflower version
+      description: In Settings, under About.
+      placeholder: 0.7.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      description: In Windows Settings › System › About, for example "Windows 11 24H2".
+  - type: dropdown
+    id: accounts
+    attributes:
+      label: Google accounts
+      multiple: true
+      options:
+        - Personal (Gmail)
+        - Work or school (Google Workspace)
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log
+      description: >
+        In Settings, under About, choose "Open logs folder" and attach or paste the lines from around the time it
+        happened. The log holds account, calendar and event IDs (a calendar's ID is often an email address) and error
+        messages, but not your events' titles or descriptions. Look it over before posting, as this page is public.
+      render: text

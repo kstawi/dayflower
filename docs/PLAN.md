@@ -15,7 +15,7 @@ milestone. Phase 7 (public release) is next.
 | Stack | WinUI 3 (Windows App SDK) + C# on .NET 10 LTS. Windows-only. |
 | Accounts | Several Google accounts at once: personal Gmail and a Workspace account run by someone else's admin. |
 | Audience | Public release: an installer on GitHub, plus the public GitHub repo. |
-| Background | Runs in the background without a tray icon: closing the window hides it, and it keeps syncing and reminding. Reopened from Start; Quit in Settings. Starts with Windows (switchable in Task Manager). |
+| Background | Runs in the background without a tray icon: closing the window hides it, and it keeps syncing and reminding. Reopened from Start; Quit in Settings. A setting, on by default: when off, closing the window quits. Starts with Windows (switchable in Settings and Task Manager). |
 | Join links | Google Meet from the event's conference data, plus Zoom, Teams, Webex, Slack huddles, Whereby and similar found in the location or description. Opens in the default browser. |
 | Join placement | Event details flyout (always), on the event in the day/week grid (from shortly before start until the end), and on reminder notifications. |
 | Meet account | Join opens Meet as the Google account the event belongs to. |
@@ -444,14 +444,22 @@ and you install it the same way. Steps 1 and 6 need only you and can start strai
 
    **Written 2026-11-06** (`.github/workflows/release.yml`, notes from `CHANGELOG.md`, `v…-beta.N` tags make
    pre-releases that installed copies ignore). Checked locally: the notes step, fetching the previous release (none
-   yet, which it handles), and packing both x64 and ARM64 on an x64 PC (the ARM64 program really is ARM64). Not run
-   on GitHub yet: it needs the two OAuth secrets and a pushed tag.
+   yet, which it handles), and packing both x64 and ARM64 on an x64 PC (the ARM64 program really is ARM64). The OAuth
+   secrets are set, and `v0.7.0-beta.1` was published by it on 2026-11-06 (a pre-release; the GitHub-built program
+   carries the OAuth client). Installed from that release, it's your everyday copy.
 5. **Ready for other people.**
    - An About section in Settings: version, privacy policy, "Report a problem" (GitHub Issues) and "Open logs folder".
    - The README covers installing, what the SmartScreen warning means and why it's there, and that a work Google
      account may need its admin's approval.
    - Checked live: an invitation notification end to end, high contrast, and a first run on a Windows account that
      has never had Dayflower.
+   - Done 2026-11-06: About shows the full version (0.7.0-beta.1) and has "Report a problem", which opens a GitHub
+     issue form asking for the version, Windows version and the log (saying what the log holds); the README's
+     "Installing" covers the warnings and uninstalling; a "Keep running in the background" setting, on by default.
+     The installed app needs nothing else on the PC: WinUI uses only the C runtime built into Windows, and .NET is
+     included.
+   - Still to check by hand: an invitation notification end to end (needs an invite from another account), high
+     contrast, and a first run on a Windows account that has never had Dayflower.
    - Moving your own copy over: done on 2026-11-06 (the development package uninstalled, its data copied to
      `%AppData%\Dayflower`); installing the first release over it keeps that data.
 6. **Signing (you apply, I wire it in).** Apply to SignPath Foundation once the release workflow exists (they sign

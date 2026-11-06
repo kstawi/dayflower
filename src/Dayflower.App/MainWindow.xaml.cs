@@ -108,14 +108,24 @@ public sealed partial class MainWindow : Window
         _actions.WorkingChanged += (_, working) => SavingBar.Visibility = working ? Visibility.Visible : Visibility.Collapsed;
         TimeGrid.CanMove = item => item.EditableCopy is not null;
 
-        // Closing the window hides it; Dayflower keeps running in the background to remind about events.
+        // Closing the window hides it and Dayflower keeps running in the background to remind about events, unless
+        // that's turned off in Settings: then closing quits.
         AppWindow.Closing += (_, args) =>
         {
-            if (!_closingForGood)
+            if (_closingForGood)
             {
-                args.Cancel = true;
+                return;
+            }
+
+            args.Cancel = true;
+            if (_settings.RunInBackground)
+            {
                 AppWindow.Hide();
                 HiddenToBackground?.Invoke(this, EventArgs.Empty);
+            }
+            else
+            {
+                QuitRequested?.Invoke(this, EventArgs.Empty);
             }
         };
         _ = StartAsync();
@@ -124,7 +134,7 @@ public sealed partial class MainWindow : Window
     /// <summary>Raised when closing the window hid it; Dayflower keeps running in the background.</summary>
     public event EventHandler? HiddenToBackground;
 
-    /// <summary>Raised when the user chooses Quit in Settings.</summary>
+    /// <summary>Raised when the user chooses Quit in Settings, or closes the window with running in the background off.</summary>
     public event EventHandler? QuitRequested;
 
     /// <summary>Shows the window (from the tray, a notification or a second launch) and brings it to the front.</summary>

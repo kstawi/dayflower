@@ -60,8 +60,9 @@ public partial class App : Application
         // A second launch (Start menu, startup task, notification) is redirected here by Program.Main.
         AppInstance.GetCurrent().Activated += (_, e) => _ui.TryEnqueue(() => OnActivated(e));
 
+        // Started at sign-in, it stays hidden, unless it isn't to run in the background (then closing quits it).
         var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
-        if (!StartedByWindows(activation))
+        if (!StartedByWindows(activation) || !_settings.RunInBackground)
         {
             _window.ShowWindow();
         }

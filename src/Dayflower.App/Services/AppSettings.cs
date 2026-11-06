@@ -65,6 +65,12 @@ public sealed class AppSettings
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Closing the window keeps Dayflower running, so reminders and invitations still arrive. When off, closing the
+    /// window quits it, and starting with Windows opens the window rather than starting hidden.
+    /// </summary>
+    public bool RunInBackground { get; set; } = true;
+
     /// <summary>Whether the "still running in the background" notice has been shown once.</summary>
     public bool BackgroundNoticeShown { get; set; }
 

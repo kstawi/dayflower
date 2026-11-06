@@ -4,6 +4,7 @@
 
 using System.Collections.Specialized;
 using System.Globalization;
+using System.Reflection;
 using Dayflower.Calendar;
 using Dayflower.Services;
 using Dayflower.ViewModels;
@@ -41,7 +42,7 @@ public sealed partial class SettingsView : UserControl
     private readonly EventActions _actions;
     private readonly StackPanel _accountCards = new() { Spacing = 4 };
     private readonly ComboBox _defaultCalendar = new() { MinWidth = 240 };
-    private readonly ToggleSwitch _startup = new();
+    private readonly ToggleSwitch _startup = new() { OnContent = "On", OffContent = "Off", MinWidth = 0 };
     private readonly TextBlock _startupNote = Description(string.Empty);
     private readonly UpdateService _updates;
     private readonly TextBlock _updateText = Description(string.Empty);
@@ -201,13 +202,15 @@ public sealed partial class SettingsView : UserControl
     private void BuildGeneral(StackPanel page)
     {
         Section(page, "General");
+        page.Children.Add(Card("", "Keep running in the background", "Closing the window keeps Dayflower running, so reminders and invitations still arrive. When this is off, closing the window quits Dayflower.",
+            Toggle(_settings.RunInBackground, on => _settings.RunInBackground = on)));
         _startup.Toggled += async (_, _) => await SetStartupAsync(_startup.IsOn);
-        page.Children.Add(Card("", "Start with Windows", "Dayflower starts in the background when you sign in, so reminders arrive.", _startup, _startupNote));
+        page.Children.Add(Card("", "Start with Windows", "Dayflower starts when you sign in, so reminders arrive. It starts hidden when it keeps running in the background.", _startup, _startupNote));
 
         var quit = new Button { Content = "Quit" };
         quit.Click += (_, _) => QuitRequested?.Invoke(this, EventArgs.Empty);
         AutomationProperties.SetName(quit, "Quit Dayflower");
-        page.Children.Add(Card("", "Quit Dayflower", "Closing the window keeps Dayflower running in the background for reminders. Quit stops it until you open it again.", quit));
+        page.Children.Add(Card("", "Quit Dayflower", "Stops Dayflower and its reminders until you open it again.", quit));
 
         var keys = new Grid { ColumnSpacing = 24, RowSpacing = 6, Margin = new Thickness(0, 10, 0, 4) };
         keys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -245,6 +248,7 @@ public sealed partial class SettingsView : UserControl
         ShowUpdateStatus();
 
         var links = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
+        links.Children.Add(Link("Report a problem", "https://github.com/kstawi/dayflower/issues/new/choose"));
         links.Children.Add(Link("Source code", "https://github.com/kstawi/dayflower"));
         links.Children.Add(Link("Privacy", "https://github.com/kstawi/dayflower/blob/main/PRIVACY.md"));
         links.Children.Add(Link("Licence", "https://github.com/kstawi/dayflower/blob/main/LICENSE"));
@@ -443,6 +447,10 @@ public sealed partial class SettingsView : UserControl
             return string.Create(CultureInfo.InvariantCulture, $"{v.Major}.{v.Minor}.{v.Build}");
         }
 
-        return typeof(SettingsView).Assembly.GetName().Version?.ToString(3) ?? "?";
+        // The release's own version, with any pre-release label (0.7.0-beta.1), without the commit the SDK appends.
+        var assembly = typeof(SettingsView).Assembly;
+        return assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]
+               ?? assembly.GetName().Version?.ToString(3)
+               ?? "?";
     }
 }
