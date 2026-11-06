@@ -4,8 +4,8 @@ A Windows 11 calendar app that shows several Google accounts in one calendar, pu
 video meeting, and raises desktop reminders that match the reminders set in Google Calendar. It's built to look
 like part of Windows 11, starts with Google, and leaves room for Microsoft 365, iCloud, CalDAV and ICS later.
 
-Status: agreed in the planning interview on 2026-11-06. Phases 0 (setup), 1 (accounts and sync) and 2 (calendar
-views) are done; phase 3 (Join) is next.
+Status: agreed in the planning interview on 2026-11-06. Phases 0 (setup), 1 (accounts and sync), 2 (calendar
+views) and 3 (Join) are done; phase 4 (reminders, tray and start-up) is next.
 
 ## 1. Decisions
 
@@ -287,6 +287,13 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
 - Join in the details flyout and on grid events; Meet opens as the right account; "Join as …" for merged events.
 - **Done when:** every meeting in your calendars shows Join in the flyout, the grid button appears 10 minutes before,
   and Meet opens as the correct account in your default browser.
+- **Result:** detection is in Core (`MeetingLinkDetector`) with tests for Meet, Zoom (links and the add-on), Teams
+  (Outlook invites, new and personal links), Webex, Slack huddles, Whereby, GoTo, Jitsi and Chime, Outlook Safe
+  Links and Google redirect wrappers, and links that aren't meetings. On the real work calendar the dev tool's
+  `meetings` command found a Join link on all 325 meetings from March 2026 to January 2027 and no misses (the
+  other 49 events were holidays and one test event). Meet links get `authuser=<account email>`. The grid shows
+  "Join" (or a camera button on short events) from 10 minutes before the start (`joinLeadMinutes` in
+  settings.json) until the end.
 
 ### Phase 4: Reminders, tray and start-up (M)
 - Reminder scheduler, toasts with Join / Snooze / Dismiss, "starting now" alert, missed-reminder handling.

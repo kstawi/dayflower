@@ -31,6 +31,9 @@ public sealed class AppSettings
 
     public int WorkdayEndHour { get; set; } = 18;
 
+    /// <summary>How many minutes before a meeting starts its Join button appears on the event in the grid.</summary>
+    public int JoinLeadMinutes { get; set; } = 10;
+
     private static string FilePath => Path.Combine(AppPaths.DataFolder, "settings.json");
 
     public static AppSettings Load()

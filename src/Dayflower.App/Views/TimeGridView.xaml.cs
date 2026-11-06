@@ -23,14 +23,18 @@ public sealed partial class TimeGridView : UserControl
     /// <summary>Events shorter than this show their title and start time on one line.</summary>
     private static readonly TimeSpan ShortEvent = TimeSpan.FromMinutes(40);
 
-    private readonly List<(Button Block, int Day, SlotPlacement Placement)> _blocks = [];
+    private readonly List<(FrameworkElement Block, int Day, SlotPlacement Placement)> _blocks = [];
     private readonly List<Grid> _dayLayers = [];
     private readonly DispatcherQueueTimer _clock;
     private IReadOnlyList<DateOnly> _days = [];
     private IReadOnlyList<CalendarItem> _items = [];
     private int _workStart = 8, _workEnd = 18;
+    private TimeSpan _joinLead = TimeSpan.FromMinutes(10);
     private FrameworkElement? _nowLine;
     private int _todayIndex = -1;
+
+    // The events showing a Join button in the current build; rebuilt when that set changes.
+    private HashSet<CalendarItem> _joinable = [];
 
     public TimeGridView()
     {
@@ -39,7 +43,7 @@ public sealed partial class TimeGridView : UserControl
 
         _clock = DispatcherQueue.CreateTimer();
         _clock.Interval = TimeSpan.FromSeconds(30);
-        _clock.Tick += (_, _) => UpdateNowLine();
+        _clock.Tick += (_, _) => OnClockTick();
         Loaded += (_, _) => _clock.Start();
         Unloaded += (_, _) => _clock.Stop();
         ActualThemeChanged += (_, _) => Build();
@@ -49,13 +53,19 @@ public sealed partial class TimeGridView : UserControl
 
     public event EventHandler<DateOnly>? DayClicked;
 
+    /// <summary>Raised when the Join button on an event is clicked.</summary>
+    public event EventHandler<CalendarItem>? JoinClicked;
+
+    /// <param name="joinLead">How long before a meeting starts its Join button appears.</param>
     /// <param name="scrollToStart">Scroll to the current time (or the start of the working day).</param>
-    public void Show(IReadOnlyList<DateOnly> days, IReadOnlyList<CalendarItem> items, int workStart, int workEnd, bool scrollToStart)
+    public void Show(IReadOnlyList<DateOnly> days, IReadOnlyList<CalendarItem> items, int workStart, int workEnd,
+                     TimeSpan joinLead, bool scrollToStart)
     {
         _days = days;
         _items = items;
         _workStart = workStart;
         _workEnd = workEnd;
+        _joinLead = joinLead;
         Build();
         if (scrollToStart)
         {
@@ -79,6 +89,7 @@ public sealed partial class TimeGridView : UserControl
 
         var today = DateOnly.FromDateTime(DateTime.Now);
         _todayIndex = _days.ToList().IndexOf(today);
+        _joinable = JoinableNow();
         BuildHeader(today);
         BuildAllDay();
         BuildBody();
@@ -252,17 +263,68 @@ public sealed partial class TimeGridView : UserControl
             var item = timed[placement.Index];
             var slot = slots[placement.Index];
             bool isShort = item.Span.End - item.Span.Start < ShortEvent;
+            bool joinable = _joinable.Contains(item);
+            double inset = joinable ? (isShort ? 30 : 50) : 0;
             var block = isShort
-                ? EventVisuals.Block(item, TimeText.Time(item.Span.Start), singleLine: true, ActualTheme, OnItemClicked)
-                : EventVisuals.Block(item, TimeText.TimeRange(item.Span.Start, item.Span.End), singleLine: false, ActualTheme, OnItemClicked);
+                ? EventVisuals.Block(item, TimeText.Time(item.Span.Start), singleLine: true, ActualTheme, OnItemClicked, inset)
+                : EventVisuals.Block(item, TimeText.TimeRange(item.Span.Start, item.Span.End), singleLine: false, ActualTheme, OnItemClicked, inset);
 
-            block.HorizontalAlignment = HorizontalAlignment.Left;
-            block.VerticalAlignment = VerticalAlignment.Top;
-            block.Height = Math.Max(slot.EndMinutes - slot.StartMinutes, 20) / 60 * HourHeight - 2;
-            block.Margin = new Thickness(0, slot.StartMinutes / 60 * HourHeight + 1, 0, 0);
-            layer.Children.Add(block);
-            _blocks.Add((block, dayIndex, placement));
+            // The Join button sits on top of the block, not inside it, so the two stay separate buttons.
+            FrameworkElement host = block;
+            if (joinable)
+            {
+                var grid = new Grid();
+                grid.Children.Add(block);
+                grid.Children.Add(JoinButton(item, compact: isShort));
+                host = grid;
+            }
+
+            host.HorizontalAlignment = HorizontalAlignment.Left;
+            host.VerticalAlignment = VerticalAlignment.Top;
+            host.Height = Math.Max(slot.EndMinutes - slot.StartMinutes, 20) / 60 * HourHeight - 2;
+            host.Margin = new Thickness(0, slot.StartMinutes / 60 * HourHeight + 1, 0, 0);
+            layer.Children.Add(host);
+            _blocks.Add((host, dayIndex, placement));
         }
+    }
+
+    /// <summary>"Join" (or a camera icon on short events) in the accent colour, top right of the event.</summary>
+    private Button JoinButton(CalendarItem item, bool compact)
+    {
+        var button = new Button
+        {
+            Style = EventVisuals.Resource<Style>("AccentButtonStyle"),
+            Content = compact ? new FontIcon { Glyph = "", FontSize = 12 } : new TextBlock { Text = "Join", FontSize = 12 },
+            Padding = compact ? new Thickness(6, 0, 6, 0) : new Thickness(10, 2, 10, 2),
+            MinWidth = 0,
+            MinHeight = 0,
+            Height = compact ? 18 : 24,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, compact ? 1 : 4, 4, 0),
+        };
+        AutomationProperties.SetName(button, $"{item.Meeting!.JoinLabel}: {item.Title}");
+        ToolTipService.SetToolTip(button, item.Meeting.JoinLabel);
+        button.Click += (_, _) => JoinClicked?.Invoke(this, item);
+        return button;
+    }
+
+    private HashSet<CalendarItem> JoinableNow()
+    {
+        var now = DateTime.Now;
+        return _items.Where(i => !i.Span.IsAllDayLike && i.IsJoinable(now, _joinLead)).ToHashSet();
+    }
+
+    private void OnClockTick()
+    {
+        // Join buttons appear shortly before a meeting and go when it ends.
+        if (!JoinableNow().SetEquals(_joinable))
+        {
+            Build();
+            return;
+        }
+
+        UpdateNowLine();
     }
 
     private void PositionBlocks(int dayIndex)

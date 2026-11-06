@@ -282,6 +282,7 @@
                     Margin="8,0,8,0"
                     DayClicked="View_DayClicked"
                     ItemClicked="View_ItemClicked"
+                    JoinClicked="View_JoinClicked"
                     Visibility="Collapsed" />
 
                 <views:MonthView

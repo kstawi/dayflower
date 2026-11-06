@@ -31,6 +31,7 @@ public sealed partial class MainWindow : Window
     private readonly CalendarDataService _data;
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly ILogger<MainWindow> _logger;
+    private readonly JoinService _join;
 
     // Set while the window updates the mini month or view switcher itself, so their change events don't loop back.
     private bool _updatingControls;
@@ -43,6 +44,7 @@ public sealed partial class MainWindow : Window
         _services = services;
         _data = new CalendarDataService(services);
         _logger = services.Loggers.CreateLogger<MainWindow>();
+        _join = new JoinService(services.Loggers.CreateLogger<JoinService>());
 
         // Week start comes from Windows' regional settings (Settings > Time & language > Language & region).
         var weekStart = GlobalizationPreferences.WeekStartsOn;
@@ -162,7 +164,8 @@ public sealed partial class MainWindow : Window
             case CalendarViewKind.Week:
                 var days = Enumerable.Range(0, period.GridEnd.DayNumber - period.GridStart.DayNumber)
                     .Select(i => period.GridStart.AddDays(i)).ToList();
-                TimeGrid.Show(days, items, _settings.WorkdayStartHour, _settings.WorkdayEndHour, scrollToStart: periodChanged);
+                TimeGrid.Show(days, items, _settings.WorkdayStartHour, _settings.WorkdayEndHour,
+                              TimeSpan.FromMinutes(_settings.JoinLeadMinutes), scrollToStart: periodChanged);
                 break;
             case CalendarViewKind.Month:
                 MonthGrid.Show(period.GridStart, period.GridEnd, period.Start.Month, items);
@@ -180,11 +183,12 @@ public sealed partial class MainWindow : Window
         try
         {
             // A flyout created in code needs the window's XamlRoot; ShowAt doesn't infer it in desktop apps.
-            var flyout = new Flyout
+            var flyout = new Flyout { XamlRoot = e.Anchor.XamlRoot };
+            flyout.Content = new EventDetailsView(e.Item, e.Anchor.ActualTheme, AppServices.OpenInBrowserAsync, async (item, account) =>
             {
-                Content = new EventDetailsView(e.Item, e.Anchor.ActualTheme, AppServices.OpenInBrowserAsync),
-                XamlRoot = e.Anchor.XamlRoot,
-            };
+                flyout.Hide();
+                await _join.JoinAsync(item, account);
+            });
             flyout.ShowAt(e.Anchor, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Auto });
         }
         catch (Exception ex)
@@ -194,6 +198,8 @@ public sealed partial class MainWindow : Window
     }
 
     private void View_DayClicked(object? sender, DateOnly day) => ViewModel.ShowDay(day);
+
+    private async void View_JoinClicked(object? sender, CalendarItem item) => await _join.JoinAsync(item);
 
     /// <summary>Follows Windows' light/dark mode unless settings.json picks one.</summary>
     private void ApplyTheme()

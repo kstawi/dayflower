@@ -3,6 +3,7 @@
 // Licensed under the GNU General Public License v3.0; see the LICENSE file.
 
 using Dayflower.Core.Display;
+using Dayflower.Core.Meetings;
 using Dayflower.Core.Model;
 using Windows.UI;
 
@@ -32,4 +33,13 @@ public sealed class CalendarItem(MergedOccurrence merged, LocalSpan span, Color 
 
     /// <summary>An occurrence of a repeating event (unchanged or changed).</summary>
     public bool IsRepeating => Event.IsSeries || Event.IsOccurrenceOverride;
+
+    /// <summary>The video meeting to join, from whichever copy has one (normally all of them).</summary>
+    public MeetingLink? Meeting { get; } = merged.Copies.Select(c => MeetingLinkDetector.Find(c.Event)).FirstOrDefault(l => l is not null);
+
+    /// <summary>The user's accounts this meeting is on, the primary copy's first; each can join as itself.</summary>
+    public IReadOnlyList<string> Accounts => Copies.Select(c => c.AccountEmail).Where(a => a.Length > 0).Distinct().ToList();
+
+    /// <summary>Whether Join should show on the event in the time grid: from <paramref name="lead"/> before the start until the end.</summary>
+    public bool IsJoinable(DateTime now, TimeSpan lead) => Meeting is not null && now >= Span.Start - lead && now < Span.End;
 }

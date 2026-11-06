@@ -32,9 +32,9 @@ internal static class EventVisuals
     private const byte FaintFillAlpha = 0x22;
 
     /// <summary>A block for the hour grid or the all-day area.</summary>
-    public static Button Block(CalendarItem item, string? timeText, bool singleLine, ElementTheme theme, Action<FrameworkElement, CalendarItem> onClick)
+    public static Button Block(CalendarItem item, string? timeText, bool singleLine, ElementTheme theme, Action<FrameworkElement, CalendarItem> onClick, double rightInset = 0)
     {
-        var text = new StackPanel { Spacing = 0, Padding = new Thickness(6, singleLine ? 1 : 3, 4, 2) };
+        var text = new StackPanel { Spacing = 0, Padding = new Thickness(6, singleLine ? 1 : 3, 4 + rightInset, 2) };
         text.Children.Add(new TextBlock
         {
             Text = singleLine && timeText is not null ? $"{item.Title}, {timeText}" : item.Title,

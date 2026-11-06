@@ -6,6 +6,7 @@ using System.Globalization;
 using System.Text;
 using Dayflower.Calendar;
 using Dayflower.Core.Display;
+using Dayflower.Core.Meetings;
 using Dayflower.Core.Model;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -21,9 +22,12 @@ public sealed partial class EventDetailsView : UserControl
 {
     private const int MaxGuestsListed = 12;
 
+    /// <summary>Segoe Fluent Icons "Video".</summary>
+    private static readonly string VideoGlyph = char.ConvertFromUtf32(0xE714);
+
     private readonly ElementTheme _theme;
 
-    public EventDetailsView(CalendarItem item, ElementTheme theme, Func<Uri, Task> openLink)
+    public EventDetailsView(CalendarItem item, ElementTheme theme, Func<Uri, Task> openLink, Func<CalendarItem, string?, Task>? join = null)
     {
         _theme = theme;
         var e = item.Event;
@@ -52,6 +56,11 @@ public sealed partial class EventDetailsView : UserControl
         heading.Children.Add(title);
         root.Children.Add(heading);
 
+        if (item.Meeting is { } joinable && join is not null)
+        {
+            root.Children.Add(JoinButtons(item, joinable, join));
+        }
+
         root.Children.Add(Line("", TimeText.When(item) + (item.IsRepeating ? "\nRepeats" : string.Empty)));
 
         if (!string.IsNullOrWhiteSpace(e.Location))
@@ -59,9 +68,9 @@ public sealed partial class EventDetailsView : UserControl
             root.Children.Add(Line("", e.Location.Trim()));
         }
 
-        if (Meeting(e) is { } meeting)
+        if (item.Meeting is { } meeting)
         {
-            root.Children.Add(Line("", meeting));
+            root.Children.Add(Line(VideoGlyph, $"{meeting.ProviderName} · {meeting.DisplayText}"));
         }
 
         root.Children.Add(Line("", string.Join("\n", item.Copies.Select(Where))));
@@ -102,21 +111,43 @@ public sealed partial class EventDetailsView : UserControl
         Content = root;
     }
 
+    /// <summary>
+    /// The Join button, available at any time. For a Google Meet on several of the user's accounts, "Join as" links
+    /// open it as each of the other accounts too.
+    /// </summary>
+    private static StackPanel JoinButtons(CalendarItem item, MeetingLink meeting, Func<CalendarItem, string?, Task> join)
+    {
+        var panel = new StackPanel { Spacing = 4, Margin = new Thickness(28, -4, 0, 0) };
+        var content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        content.Children.Add(new FontIcon { Glyph = VideoGlyph, FontSize = 14 });
+        content.Children.Add(new TextBlock { Text = meeting.JoinLabel });
+        var button = new Button
+        {
+            Content = content,
+            Style = EventVisuals.Resource<Style>("AccentButtonStyle"),
+            HorizontalAlignment = HorizontalAlignment.Left,
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"{meeting.JoinLabel}: {item.Title}");
+        button.Click += async (_, _) => await join(item, null);
+        panel.Children.Add(button);
+
+        if (meeting.Provider == MeetingProvider.GoogleMeet && item.Accounts.Count > 1)
+        {
+            foreach (var account in item.Accounts.Skip(1))
+            {
+                var other = new HyperlinkButton { Content = $"Join as {account}", Padding = new Thickness(0) };
+                other.Click += async (_, _) => await join(item, account);
+                panel.Children.Add(other);
+            }
+        }
+
+        return panel;
+    }
+
     private static string Where(CalendarCopy copy) =>
         copy.CalendarName == copy.AccountEmail || copy.AccountEmail.Length == 0
             ? copy.CalendarName
             : $"{copy.CalendarName} · {copy.AccountEmail}";
-
-    private static string? Meeting(CalendarEvent e)
-    {
-        var video = e.Conference?.EntryPoints.FirstOrDefault(p => p.Type == "video");
-        if (video is not null)
-        {
-            return $"{e.Conference!.SolutionName ?? "Video call"} · {video.Label ?? video.Uri}";
-        }
-
-        return e.HangoutLink is { } meet ? $"Google Meet · {meet.Replace("https://", string.Empty, StringComparison.Ordinal)}" : null;
-    }
 
     private static string Answer(AttendeeResponse response) => response switch
     {

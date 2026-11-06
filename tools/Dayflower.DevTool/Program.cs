@@ -52,6 +52,8 @@ switch (command)
         return Recent(int.Parse(Option("--count") ?? "5", CultureInfo.InvariantCulture));
     case "compare":
         return await CompareAsync(int.Parse(Option("--days") ?? "42", CultureInfo.InvariantCulture));
+    case "meetings":
+        return await MeetingsAsync(int.Parse(Option("--days") ?? "60", CultureInfo.InvariantCulture));
     default:
         Console.Error.WriteLine($"Unknown command {command}. Use stats, sync or audit.");
         return 1;
@@ -262,6 +264,57 @@ async Task<int> CompareAsync(int days)
             ? o.OriginalStart.Date!.Value.ToString("yyyyMMdd", CultureInfo.InvariantCulture)
             : o.OriginalStart.DateTime!.Value.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture))}"
         : o.Event.Key.EventId;
+}
+
+// Which events in a range get a Join button, by service, and which might be missing one: no link found, but the
+// location or description mentions a meeting service. Prints event IDs and link hosts only.
+async Task<int> MeetingsAsync(int days)
+{
+    var from = Option("--from") is { } start
+        ? new DateTimeOffset(DateTime.ParseExact(start, "yyyy-MM-dd", CultureInfo.InvariantCulture), TimeSpan.Zero)
+        : new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-7);
+    var to = from.AddDays(days);
+    string[] hints = ["zoom", "teams.", "meet.google", "webex", "whereby", "gotomeet", "goto.com", "jit.si", "chime.aws", "huddle"];
+
+    var events = (await store.GetEventsAsync(from, to))
+        .Select(s => google.ParseEvent(s.Key.AccountId, s.Key.CalendarId, s.Payload)).ToList();
+    var occurrences = OccurrenceResolver.Resolve(events, from, to);
+
+    var byProvider = new Dictionary<string, int>();
+    var misses = new Dictionary<string, string>();
+    int without = 0;
+    foreach (var o in occurrences)
+    {
+        var link = Dayflower.Core.Meetings.MeetingLinkDetector.Find(o.Event);
+        if (link is not null)
+        {
+            byProvider[link.ProviderName] = byProvider.GetValueOrDefault(link.ProviderName) + 1;
+            continue;
+        }
+
+        without++;
+        string text = $"{o.Event.Location} {o.Event.Description}";
+        if (hints.Any(h => text.Contains(h, StringComparison.OrdinalIgnoreCase)))
+        {
+            var hosts = System.Text.RegularExpressions.Regex.Matches(System.Net.WebUtility.HtmlDecode(text), @"https?://[^\s<>""'/]+")
+                .Select(m => m.Value).Distinct();
+            misses[o.Event.RecurringEventId ?? o.Event.Key.EventId] = string.Join(", ", hosts);
+        }
+    }
+
+    Console.WriteLine($"{occurrences.Count} events from {from:yyyy-MM-dd} to {to:yyyy-MM-dd}; {occurrences.Count - without} with a Join link:");
+    foreach (var (provider, count) in byProvider.OrderByDescending(p => p.Value))
+    {
+        Console.WriteLine($"  {provider,-16} {count}");
+    }
+
+    Console.WriteLine($"{without} without a link; {misses.Count} of those mention a meeting service:");
+    foreach (var (id, hosts) in misses)
+    {
+        Console.WriteLine($"  {id}: {(hosts.Length == 0 ? "(no links)" : hosts)}");
+    }
+
+    return misses.Count == 0 ? 0 : 3;
 }
 
 int Recent(int count)
