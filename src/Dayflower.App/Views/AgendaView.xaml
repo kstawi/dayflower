@@ -11,6 +11,7 @@
                 Margin="0,16,0,4"
                 Foreground="{x:Bind Brush}"
                 Style="{StaticResource BodyStrongTextBlockStyle}"
+                AutomationProperties.HeadingLevel="Level2"
                 Text="{x:Bind Text}" />
         </DataTemplate>
 
@@ -61,7 +62,6 @@
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-            Text="Nothing scheduled in these 30 days."
             Visibility="Collapsed" />
     </Grid>
 </UserControl>

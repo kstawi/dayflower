@@ -33,9 +33,34 @@
                     MaxWidth="520"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Center"
-                    IsEnabled="False"
-                    PlaceholderText="Search events"
-                    QueryIcon="Find" />
+                    AutomationProperties.LandmarkType="Search"
+                    AutomationProperties.Name="Search events"
+                    IsEnabled="{x:Bind Accounts.HasAccounts, Mode=OneWay}"
+                    PlaceholderText="Search events (Ctrl+F)"
+                    QueryIcon="Find"
+                    QuerySubmitted="SearchBox_QuerySubmitted"
+                    TextChanged="SearchBox_TextChanged"
+                    UpdateTextOnSelect="False">
+                    <AutoSuggestBox.ItemTemplate>
+                        <DataTemplate x:DataType="views:SearchSuggestion">
+                            <Grid Padding="0,6" ColumnSpacing="10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="4" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Background="{x:Bind ColorBrush}" CornerRadius="2" />
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Style="{StaticResource CaptionTextBlockStyle}"
+                                        Text="{x:Bind When}"
+                                        TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </AutoSuggestBox.ItemTemplate>
+                </AutoSuggestBox>
             </TitleBar.Content>
         </TitleBar>
 
@@ -48,7 +73,10 @@
             PaneBackground="Transparent">
 
             <SplitView.Pane>
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ScrollViewer
+                    AutomationProperties.LandmarkType="Navigation"
+                    AutomationProperties.Name="Side pane"
+                    VerticalScrollBarVisibility="Auto">
                     <StackPanel Padding="8,0,8,16" Spacing="24">
                         <CalendarView
                             x:Name="MiniMonth"
@@ -64,9 +92,15 @@
                             </CalendarView.Resources>
                         </CalendarView>
 
+                        <views:WorldClockView x:Name="WorldClockPanel" />
+
                         <StackPanel Spacing="8">
                             <Grid>
-                                <TextBlock VerticalAlignment="Center" Style="{StaticResource PaneHeaderTextStyle}" Text="Calendars" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    AutomationProperties.HeadingLevel="Level2"
+                                    Style="{StaticResource PaneHeaderTextStyle}"
+                                    Text="Calendars" />
                                 <Button
                                     x:Name="AddAccountIconButton"
                                     HorizontalAlignment="Right"
@@ -191,156 +225,214 @@
                             </ItemsControl>
                         </StackPanel>
 
-                        <StackPanel Spacing="8">
-                            <TextBlock Style="{StaticResource PaneHeaderTextStyle}" Text="Time zones" />
-                            <TextBlock Style="{StaticResource PaneHintTextStyle}" Text="Clocks for the time zones you pick will show here." />
+                        <StackPanel Spacing="4">
+                            <TextBlock
+                                x:Name="SyncStatusText"
+                                AutomationProperties.LiveSetting="Polite"
+                                Style="{StaticResource PaneHintTextStyle}"
+                                Text="{x:Bind Accounts.SyncStatus, Mode=OneWay}" />
+                            <Button
+                                x:Name="SettingsButton"
+                                AutomationProperties.Name="Settings"
+                                Margin="-4,4,0,0"
+                                Click="SettingsButton_Click"
+                                Style="{StaticResource SubtleIconButtonStyle}"
+                                ToolTipService.ToolTip="Settings (Ctrl+,)">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <FontIcon FontSize="16" Glyph="&#xE713;" />
+                                    <TextBlock Text="Settings" />
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
-
-                        <TextBlock
-                            x:Name="SyncStatusText"
-                            Style="{StaticResource PaneHintTextStyle}"
-                            Text="{x:Bind Accounts.SyncStatus, Mode=OneWay}" />
                     </StackPanel>
                 </ScrollViewer>
             </SplitView.Pane>
 
             <!-- The content area sits on a layer above Mica, like the content of Windows Settings. -->
             <Grid
+                x:Name="ContentArea"
+                AutomationProperties.LandmarkType="Main"
+                AutomationProperties.Name="Calendar"
                 Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1,1,0,0"
                 CornerRadius="8,0,0,0">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
 
-                <Grid Padding="16,12,16,12" ColumnSpacing="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+                <!-- The calendar; the Settings page takes its place when open. -->
+                <Grid x:Name="CalendarContent">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
-                    <Button
-                        x:Name="NewEventButton"
-                        Click="NewEventButton_Click"
-                        IsEnabled="{x:Bind Accounts.HasAccounts, Mode=OneWay}"
-                        Style="{StaticResource AccentButtonStyle}">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <FontIcon FontSize="14" Glyph="&#xE710;" />
-                            <TextBlock Text="New event" />
+                    <Grid x:Name="Toolbar" Padding="16,12,16,12" ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button
+                            x:Name="NewEventButton"
+                            AutomationProperties.Name="New event"
+                            Click="NewEventButton_Click"
+                            IsEnabled="{x:Bind Accounts.HasAccounts, Mode=OneWay}"
+                            Style="{StaticResource AccentButtonStyle}"
+                            ToolTipService.ToolTip="New event (Ctrl+N)">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon FontSize="14" Glyph="&#xE710;" />
+                                <TextBlock Text="New event" />
+                            </StackPanel>
+                        </Button>
+
+                        <Button
+                            x:Name="TodayButton"
+                            Grid.Column="1"
+                            Command="{x:Bind ViewModel.GoToTodayCommand}"
+                            Content="Today"
+                            ToolTipService.ToolTip="Today (T)" />
+
+                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                            <Button
+                                x:Name="PreviousPeriodButton"
+                                AutomationProperties.Name="Previous"
+                                Command="{x:Bind ViewModel.GoToPreviousCommand}"
+                                Style="{StaticResource SubtleIconButtonStyle}"
+                                ToolTipService.ToolTip="Previous (Page Up)">
+                                <FontIcon FontSize="14" Glyph="&#xE76B;" />
+                            </Button>
+                            <Button
+                                x:Name="NextPeriodButton"
+                                AutomationProperties.Name="Next"
+                                Command="{x:Bind ViewModel.GoToNextCommand}"
+                                Style="{StaticResource SubtleIconButtonStyle}"
+                                ToolTipService.ToolTip="Next (Page Down)">
+                                <FontIcon FontSize="14" Glyph="&#xE76C;" />
+                            </Button>
                         </StackPanel>
-                    </Button>
 
-                    <Button
-                        x:Name="TodayButton"
-                        Grid.Column="1"
-                        Command="{x:Bind ViewModel.GoToTodayCommand}"
-                        Content="Today" />
+                        <TextBlock
+                            x:Name="PeriodTitle"
+                            Grid.Column="3"
+                            Margin="8,0,0,0"
+                            VerticalAlignment="Center"
+                            AutomationProperties.HeadingLevel="Level1"
+                            Style="{StaticResource SubtitleTextBlockStyle}"
+                            Text="{x:Bind ViewModel.Title, Mode=OneWay}"
+                            TextTrimming="CharacterEllipsis" />
 
-                    <StackPanel Grid.Column="2" Orientation="Horizontal">
-                        <Button
-                            x:Name="PreviousPeriodButton"
-                            AutomationProperties.Name="Previous"
-                            Command="{x:Bind ViewModel.GoToPreviousCommand}"
-                            Style="{StaticResource SubtleIconButtonStyle}"
-                            ToolTipService.ToolTip="Previous">
-                            <FontIcon FontSize="14" Glyph="&#xE76B;" />
-                        </Button>
-                        <Button
-                            x:Name="NextPeriodButton"
-                            AutomationProperties.Name="Next"
-                            Command="{x:Bind ViewModel.GoToNextCommand}"
-                            Style="{StaticResource SubtleIconButtonStyle}"
-                            ToolTipService.ToolTip="Next">
-                            <FontIcon FontSize="14" Glyph="&#xE76C;" />
-                        </Button>
-                    </StackPanel>
+                        <SelectorBar
+                            x:Name="ViewSwitcher"
+                            Grid.Column="4"
+                            SelectionChanged="ViewSwitcher_SelectionChanged">
+                            <SelectorBarItem Tag="Day" Text="Day" />
+                            <SelectorBarItem Tag="Week" Text="Week" />
+                            <SelectorBarItem Tag="Month" Text="Month" />
+                            <SelectorBarItem Tag="Agenda" Text="Agenda" />
+                        </SelectorBar>
+                    </Grid>
 
-                    <TextBlock
-                        x:Name="PeriodTitle"
-                        Grid.Column="3"
-                        Margin="8,0,0,0"
+                    <!-- Shows while a change is on its way to Google. -->
+                    <ProgressBar
+                        x:Name="SavingBar"
+                        Margin="16,0,16,0"
+                        VerticalAlignment="Bottom"
+                        IsIndeterminate="True"
+                        Visibility="Collapsed" />
+
+                    <views:TimeGridView
+                        x:Name="TimeGrid"
+                        Grid.Row="1"
+                        Margin="8,0,8,0"
+                        DayClicked="View_DayClicked"
+                        ItemClicked="View_ItemClicked"
+                        ItemMoved="View_ItemMoved"
+                        JoinClicked="View_JoinClicked"
+                        SlotSelected="View_SlotSelected"
+                        Visibility="Collapsed" />
+
+                    <views:MonthView
+                        x:Name="MonthGrid"
+                        Grid.Row="1"
+                        Margin="16,0,16,16"
+                        DayClicked="View_DayClicked"
+                        ItemClicked="View_ItemClicked"
+                        Visibility="Collapsed" />
+
+                    <views:AgendaView
+                        x:Name="AgendaList"
+                        Grid.Row="1"
+                        Margin="8,0,8,0"
+                        ItemClicked="View_ItemClicked"
+                        Visibility="Collapsed" />
+
+                    <!-- Search results, in place of the calendar view while searching. -->
+                    <Grid
+                        x:Name="SearchPanel"
+                        Grid.Row="1"
+                        Margin="8,0,8,0"
+                        Visibility="Collapsed">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Padding="8,0,8,4" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                x:Name="SearchTitle"
+                                VerticalAlignment="Center"
+                                AutomationProperties.HeadingLevel="Level2"
+                                AutomationProperties.LiveSetting="Polite"
+                                Style="{StaticResource BodyStrongTextBlockStyle}"
+                                TextTrimming="CharacterEllipsis" />
+                            <Button
+                                x:Name="CloseSearchButton"
+                                Grid.Column="1"
+                                Click="CloseSearchButton_Click"
+                                Content="Back to calendar"
+                                ToolTipService.ToolTip="Back to calendar (Esc)" />
+                        </Grid>
+                        <views:AgendaView
+                            x:Name="SearchResults"
+                            Grid.Row="1"
+                            ItemClicked="View_ItemClicked" />
+                    </Grid>
+
+                    <StackPanel
+                        x:Name="EmptyState"
+                        Grid.Row="1"
+                        Padding="24"
+                        HorizontalAlignment="Center"
                         VerticalAlignment="Center"
-                        Style="{StaticResource SubtitleTextBlockStyle}"
-                        Text="{x:Bind ViewModel.Title, Mode=OneWay}"
-                        TextTrimming="CharacterEllipsis" />
-
-                    <SelectorBar
-                        x:Name="ViewSwitcher"
-                        Grid.Column="4"
-                        SelectionChanged="ViewSwitcher_SelectionChanged">
-                        <SelectorBarItem Tag="Day" Text="Day" />
-                        <SelectorBarItem Tag="Week" Text="Week" />
-                        <SelectorBarItem Tag="Month" Text="Month" />
-                        <SelectorBarItem Tag="Agenda" Text="Agenda" />
-                    </SelectorBar>
+                        Spacing="8"
+                        Visibility="{x:Bind Accounts.HasNoAccounts, Mode=OneWay}">
+                        <FontIcon
+                            Margin="0,0,0,8"
+                            FontSize="48"
+                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Glyph="&#xE787;" />
+                        <TextBlock
+                            x:Name="CacheTitleText"
+                            HorizontalAlignment="Center"
+                            Style="{StaticResource SubtitleTextBlockStyle}"
+                            Text="{x:Bind Accounts.CacheTitle, Mode=OneWay}"
+                            TextAlignment="Center"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            HorizontalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="{x:Bind Accounts.CacheDetail, Mode=OneWay}"
+                            TextAlignment="Center"
+                            TextWrapping="Wrap" />
+                    </StackPanel>
                 </Grid>
 
-                <!-- Shows while a change is on its way to Google. -->
-                <ProgressBar
-                    x:Name="SavingBar"
-                    Margin="16,0,16,0"
-                    VerticalAlignment="Bottom"
-                    IsIndeterminate="True"
-                    Visibility="Collapsed" />
-
-                <views:TimeGridView
-                    x:Name="TimeGrid"
-                    Grid.Row="1"
-                    Margin="8,0,8,0"
-                    DayClicked="View_DayClicked"
-                    ItemClicked="View_ItemClicked"
-                    ItemMoved="View_ItemMoved"
-                    JoinClicked="View_JoinClicked"
-                    SlotSelected="View_SlotSelected"
-                    Visibility="Collapsed" />
-
-                <views:MonthView
-                    x:Name="MonthGrid"
-                    Grid.Row="1"
-                    Margin="16,0,16,16"
-                    DayClicked="View_DayClicked"
-                    ItemClicked="View_ItemClicked"
-                    Visibility="Collapsed" />
-
-                <views:AgendaView
-                    x:Name="AgendaList"
-                    Grid.Row="1"
-                    Margin="8,0,8,0"
-                    ItemClicked="View_ItemClicked"
-                    Visibility="Collapsed" />
-
-                <StackPanel
-                    x:Name="EmptyState"
-                    Grid.Row="1"
-                    Padding="24"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    Spacing="8"
-                    Visibility="{x:Bind Accounts.HasNoAccounts, Mode=OneWay}">
-                    <FontIcon
-                        Margin="0,0,0,8"
-                        FontSize="48"
-                        Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                        Glyph="&#xE787;" />
-                    <TextBlock
-                        x:Name="CacheTitleText"
-                        HorizontalAlignment="Center"
-                        Style="{StaticResource SubtitleTextBlockStyle}"
-                        Text="{x:Bind Accounts.CacheTitle, Mode=OneWay}"
-                        TextAlignment="Center"
-                        TextWrapping="Wrap" />
-                    <TextBlock
-                        HorizontalAlignment="Center"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="{x:Bind Accounts.CacheDetail, Mode=OneWay}"
-                        TextAlignment="Center"
-                        TextWrapping="Wrap" />
-                </StackPanel>
+                <Grid x:Name="SettingsHost" Visibility="Collapsed" />
             </Grid>
         </SplitView>
     </Grid>

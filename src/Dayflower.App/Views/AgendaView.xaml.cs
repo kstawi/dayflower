@@ -10,7 +10,10 @@ using Microsoft.UI.Xaml.Media;
 namespace Dayflower.Views;
 
 /// <summary>A day heading in the agenda list.</summary>
-public sealed record AgendaHeader(string Text, Brush Brush);
+public sealed record AgendaHeader(string Text, Brush Brush)
+{
+    public override string ToString() => Text;
+}
 
 /// <summary>One event row in the agenda list.</summary>
 public sealed class AgendaEntry(CalendarItem item, string time)
@@ -26,6 +29,9 @@ public sealed class AgendaEntry(CalendarItem item, string time)
     public Visibility HasDetail => string.IsNullOrEmpty(Detail) ? Visibility.Collapsed : Visibility.Visible;
 
     public SolidColorBrush ColorBrush { get; } = new(item.Color);
+
+    /// <summary>What a screen reader says for the row.</summary>
+    public override string ToString() => string.IsNullOrEmpty(Detail) ? $"{Title}, {Time}" : $"{Title}, {Time}, {Detail}";
 }
 
 public sealed partial class AgendaTemplateSelector : DataTemplateSelector
@@ -78,6 +84,49 @@ public sealed partial class AgendaView : UserControl
         }
 
         List.ItemsSource = rows;
+        Empty.Text = "Nothing scheduled in these 30 days.";
+        Empty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// Search results in the order given (upcoming soonest first, then past ones latest first), under day headings,
+    /// with a "Past events" heading where the past ones begin.
+    /// </summary>
+    public void ShowResults(IReadOnlyList<CalendarItem> items, string emptyText)
+    {
+        var now = DateTime.Now;
+        var today = DateOnly.FromDateTime(now);
+        var rows = new List<object>();
+        DateOnly? lastDay = null;
+        bool inPast = false;
+        foreach (var item in items)
+        {
+            if (!inPast && item.Span.End <= now)
+            {
+                inPast = true;
+                lastDay = null;
+                if (rows.Count > 0)
+                {
+                    rows.Add(new AgendaHeader("Past events", ThemeBrush("TextFillColorSecondaryBrush")));
+                }
+            }
+
+            var day = item.Span.FirstDay;
+            if (day != lastDay)
+            {
+                lastDay = day;
+                string date = day.Year == today.Year ? TimeText.LongDate(day) : $"{TimeText.LongDate(day)} {day.Year}";
+                string heading = day == today ? $"Today · {date}" : day == today.AddDays(1) ? $"Tomorrow · {date}" : date;
+                rows.Add(new AgendaHeader(heading, ThemeBrush(day == today ? "AccentTextFillColorPrimaryBrush" : "TextFillColorPrimaryBrush")));
+            }
+
+            rows.Add(new AgendaEntry(item, item.Span.IsAllDayLike
+                ? item.Span.LastDay > item.Span.FirstDay ? $"Until {TimeText.ShortDate(item.Span.LastDay)}" : "All day"
+                : TimeLabel(item, day.ToDateTime(TimeOnly.MinValue))));
+        }
+
+        List.ItemsSource = rows;
+        Empty.Text = emptyText;
         Empty.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 

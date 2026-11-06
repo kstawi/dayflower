@@ -24,6 +24,7 @@ public partial class App : Application
     private TrayService? _tray;
     private NotificationService? _notifications;
     private ReminderScheduler? _reminders;
+    private InvitationWatcher? _invitations;
     private ILogger<App>? _logger;
     private DispatcherQueue? _ui;
 
@@ -49,13 +50,27 @@ public partial class App : Application
         _reminders = new ReminderScheduler(_services, _settings, _notifications, join, _ui);
         _reminders.Ticked += (_, _) => UpdateTrayToolTip();
 
-        _window = new MainWindow(_services, _settings, join);
+        var edits = new EventEditService(_services);
+        _invitations = new InvitationWatcher(_services, _settings, _notifications, edits, _services.Loggers.CreateLogger<InvitationWatcher>());
+        _settings.Changed += async (_, _) => await _reminders.ReplanAsync();
+
+        _window = new MainWindow(_services, _settings, join, edits);
         _window.HiddenToTray += (_, _) => ShowTrayNoticeOnce();
         _window.Accounts.CalendarsChanged += async (_, _) => await _reminders.ReplanAsync();
 
         _tray = new TrayService(_services.Loggers.CreateLogger<TrayService>());
         _tray.OpenRequested += (_, _) => _window.ShowWindow();
         _tray.SyncRequested += async (_, _) => await _services.Sync.SyncNowAsync();
+        _tray.NewEventRequested += (_, _) =>
+        {
+            _window.ShowWindow();
+            _window.NewEvent();
+        };
+        _tray.SettingsRequested += (_, _) =>
+        {
+            _window.ShowWindow();
+            _window.OpenSettings();
+        };
         _tray.QuitRequested += (_, _) => Quit();
         _tray.StartupBlocked += (_, text) => _notifications.ShowNotice("Start with Windows", text);
 
@@ -70,7 +85,11 @@ public partial class App : Application
         }
 
         _logger.LogInformation("Started ({Kind})", activation.Kind);
-        _services.Sync.Completed += async (_, _) => await _reminders.ReplanAsync();
+        _services.Sync.Completed += async (_, _) =>
+        {
+            await _reminders.ReplanAsync();
+            await _invitations.CheckAsync();
+        };
         _services.Sync.Start();
         await _reminders.StartAsync();
 
@@ -99,6 +118,17 @@ public partial class App : Application
             case "join":
             case "snooze":
                 await _reminders!.HandleAsync(action);
+                break;
+            case "rsvp":
+                await _invitations!.RespondAsync(action.Id, action.Response);
+                break;
+            case "invite":
+                _window!.ShowWindow();
+                if (await _invitations!.FindDayAsync(action.Id) is { } day)
+                {
+                    _window.ShowDate(day);
+                }
+
                 break;
             case "open":
                 _window!.ShowWindow();

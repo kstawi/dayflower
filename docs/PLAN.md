@@ -4,9 +4,9 @@ A Windows 11 calendar app that shows several Google accounts in one calendar, pu
 video meeting, and raises desktop reminders that match the reminders set in Google Calendar. It's built to look
 like part of Windows 11, starts with Google, and leaves room for Microsoft 365, iCloud, CalDAV and ICS later.
 
-Status: agreed in the planning interview on 2026-11-06. Phases 0–5 (setup, accounts and sync, calendar views,
-Join, reminders with tray and start-up, editing) are done; phase 4 was the daily-driver milestone. Phase 6 (search,
-invitations, world clock, settings) is next.
+Status: agreed in the planning interview on 2026-11-06. Phases 0–6 (setup, accounts and sync, calendar views,
+Join, reminders with tray and start-up, editing, search and settings) are done; phase 4 was the daily-driver
+milestone. Phase 7 (public release) is next.
 
 ## 1. Decisions
 
@@ -87,7 +87,8 @@ invitations, world clock, settings) is next.
   Focus time (with auto-decline), Working location (home, office or a custom place). Shown in their Google style for
   all accounts; the create options are hidden for Gmail accounts.
 - **Search:** instant search of cached events across all accounts by title, description, location and guests (works
-  offline), plus "Search Google" for events outside the cached range.
+  offline). The cache holds every event Google has (sync has no date range), so a separate "Search Google" isn't
+  needed.
 
 ### 2.5 Join button (the headline feature)
 
@@ -340,6 +341,25 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
 - Search (cached + "Search Google"), invitation toasts with Accept / Maybe / Decline, world clock in the side pane,
   the full Settings page, keyboard shortcuts, accessibility pass.
 - **Done when:** these work end to end, and a keyboard-only and screen-reader pass finds no blockers.
+- **Result:** search runs over the whole cache (Core `EventSearchIndex`: every word must match the title, location,
+  description, guests or organiser, ignoring case and accents, so "swieta" finds "Święta"); a repeating event shows
+  once, at its next occurrence. Typing lists the first matches under the search box; Enter shows all of them,
+  upcoming first, then past ones. "Search Google" was dropped: the cache already has everything Google has.
+  Invitation notifications (`InvitationWatch` in Core, `InvitationWatcher` in the app) run after each sync on the
+  user's own visible main calendars, once per meeting, with Accept / Maybe / Decline (a series is answered for all
+  occurrences); invitations already there when an account is first synced are remembered, not announced. The
+  world clock sits under the mini month, with a city search (about 140 cities, plus every Windows time zone),
+  rename, reorder and remove. The Settings page (setting cards, as in Windows Settings) has the default calendar,
+  working hours, show declined events, the notification switches, the Join lead time, accounts, theme (applied at
+  once), start with Windows, the shortcuts and About; the tray menu gained New event and Settings. Shortcuts:
+  Ctrl+N, Ctrl+F, Ctrl+, F5, Esc, and T, D / W / M / A, Page Up / Down and ← / → when not typing. Accessibility:
+  every keyboard-reachable control in the four views and Settings has a name (checked with UI Automation),
+  events are read with their day, time and answer, headings and landmarks are marked, the sync status is a live
+  region, and contrast themes draw events in system colours.
+- **Also fixed:** the Going? buttons now only answer on the user's own main calendars (on a colleague's shared
+  calendar Google marks the colleague as "self").
+- **Not checked live:** an invitation notification needs a new invitation to arrive (the first run correctly
+  stayed quiet about the one already waiting), and contrast themes need Windows' contrast setting switched on.
 
 ### Phase 7: Public release (M)
 - MSIX packaging and Store listing (reserve the name in Partner Center early, ideally in phase 0), screenshots,

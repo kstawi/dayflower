@@ -66,6 +66,7 @@ internal static class EventVisuals
             TextWrapping = singleLine ? TextWrapping.NoWrap : TextWrapping.Wrap,
             MaxLines = singleLine ? 1 : 3,
             FontStyle = item.MyResponse == AttendeeResponse.Tentative ? Windows.UI.Text.FontStyle.Italic : Windows.UI.Text.FontStyle.Normal,
+            TextDecorations = Decorations(item),
         });
         if (!singleLine && timeText is not null)
         {
@@ -94,6 +95,7 @@ internal static class EventVisuals
                 Padding = new Thickness(6, 1, 4, 1),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 VerticalAlignment = VerticalAlignment.Center,
+                TextDecorations = Decorations(item),
             };
             return Wrap(item, Surface(item, label, theme), null, onClick);
         }
@@ -121,11 +123,25 @@ internal static class EventVisuals
             FontSize = 12,
             TextTrimming = TextTrimming.CharacterEllipsis,
             VerticalAlignment = VerticalAlignment.Center,
+            TextDecorations = Decorations(item),
         });
         return Wrap(item, row, TimeText.Time(item.Span.Start), onClick);
     }
 
     public static SolidColorBrush Tint(Color color, byte alpha) => new(Color.FromArgb(alpha, color.R, color.G, color.B));
+
+    private static readonly Windows.UI.ViewManagement.AccessibilitySettings Accessibility = new();
+    private static readonly Windows.UI.ViewManagement.UISettings SystemColors = new();
+
+    /// <summary>Whether a Windows contrast theme is on; then only its system colours are used.</summary>
+    public static bool IsHighContrast => Accessibility.HighContrast;
+
+    /// <summary>A Windows contrast theme colour, e.g. the window background or highlight.</summary>
+    public static SolidColorBrush SystemBrush(Windows.UI.ViewManagement.UIElementType element) => new(SystemColors.UIElementColor(element));
+
+    /// <summary>Declined invitations, when shown, are struck through as in Google Calendar.</summary>
+    private static Windows.UI.Text.TextDecorations Decorations(CalendarItem item) =>
+        item.MyResponse == AttendeeResponse.Declined ? Windows.UI.Text.TextDecorations.Strikethrough : Windows.UI.Text.TextDecorations.None;
 
     /// <summary>A resource that doesn't depend on the theme, such as a style.</summary>
     public static T Resource<T>(string key) => (T)Application.Current.Resources[key];
@@ -137,7 +153,7 @@ internal static class EventVisuals
     /// </summary>
     public static T ThemeResource<T>(string key, ElementTheme theme)
     {
-        string themeKey = theme == ElementTheme.Light ? "Light" : "Dark";
+        string themeKey = IsHighContrast ? "HighContrast" : theme == ElementTheme.Light ? "Light" : "Dark";
         return TryFind(Application.Current.Resources, key, themeKey, out object? value)
             ? (T)value!
             : (T)Application.Current.Resources[key];
@@ -167,14 +183,32 @@ internal static class EventVisuals
 
     private static Grid Surface(CalendarItem item, UIElement content, ElementTheme theme)
     {
+        if (IsHighContrast)
+        {
+            // Contrast themes: the window's colours with an outline and a highlight-coloured bar, no calendar tints.
+            var plain = new Grid
+            {
+                CornerRadius = new CornerRadius(4),
+                Background = SystemBrush(Windows.UI.ViewManagement.UIElementType.Window),
+                BorderBrush = SystemBrush(Windows.UI.ViewManagement.UIElementType.WindowText),
+                BorderThickness = new Thickness(1),
+            };
+            plain.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(4) });
+            plain.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            plain.Children.Add(new Border { Background = SystemBrush(Windows.UI.ViewManagement.UIElementType.Highlight) });
+            Grid.SetColumn((FrameworkElement)content, 1);
+            plain.Children.Add(content);
+            return plain;
+        }
+
         bool unanswered = item.MyResponse == AttendeeResponse.NeedsAction;
-        bool tentative = item.MyResponse == AttendeeResponse.Tentative;
+        bool faint = item.MyResponse is AttendeeResponse.Tentative or AttendeeResponse.Declined;
         var surface = new Grid
         {
             CornerRadius = new CornerRadius(4),
-            Background = unanswered ? ThemeResource<Brush>("LayerFillColorDefaultBrush", theme) : Tint(item.Color, tentative ? FaintFillAlpha : FillAlpha),
-            BorderBrush = unanswered || tentative ? new SolidColorBrush(item.Color) : null,
-            BorderThickness = unanswered || tentative ? new Thickness(1) : new Thickness(0),
+            Background = unanswered ? ThemeResource<Brush>("LayerFillColorDefaultBrush", theme) : Tint(item.Color, faint ? FaintFillAlpha : FillAlpha),
+            BorderBrush = unanswered || faint ? new SolidColorBrush(item.Color) : null,
+            BorderThickness = unanswered || faint ? new Thickness(1) : new Thickness(0),
         };
         surface.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3) });
         surface.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -191,7 +225,15 @@ internal static class EventVisuals
             Style = Resource<Style>("EventBlockButtonStyle"),
             Content = content,
         };
-        AutomationProperties.SetName(button, timeText is null ? item.Title : $"{item.Title}, {timeText}");
+        // Screen readers hear the day too, and how the user answered.
+        string answer = item.MyResponse switch
+        {
+            AttendeeResponse.NeedsAction => ", not answered",
+            AttendeeResponse.Tentative => ", maybe",
+            AttendeeResponse.Declined => ", declined",
+            _ => string.Empty,
+        };
+        AutomationProperties.SetName(button, $"{item.Title}, {TimeText.When(item).Replace('\n', ' ')}{answer}");
         ToolTipService.SetToolTip(button, $"{item.Title}\n{TimeText.When(item)}");
         button.Click += (_, _) => onClick(button, item);
         return button;

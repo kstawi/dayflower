@@ -11,7 +11,7 @@ using Windows.UI;
 namespace Dayflower.Calendar;
 
 /// <summary>Where one copy of a meeting lives: which calendar of which account, and how the user answered there.</summary>
-public sealed record CalendarCopy(string CalendarName, string AccountEmail, Color Color, AttendeeResponse? Response, CalendarAccess Access);
+public sealed record CalendarCopy(string CalendarName, string AccountEmail, Color Color, AttendeeResponse? Response, CalendarAccess Access, bool IsPrimary);
 
 /// <summary>Something to draw in a calendar view: one (possibly merged) occurrence, in the viewer's local time.</summary>
 public sealed class CalendarItem(MergedOccurrence merged, LocalSpan span, Color color, IReadOnlyList<CalendarCopy> copies)
@@ -47,8 +47,11 @@ public sealed class CalendarItem(MergedOccurrence merged, LocalSpan span, Color 
     /// <summary>The copy the user may delete outright, or null (an invitation is declined instead).</summary>
     public EventOccurrence? DeletableCopy => Merged.Copies.Where((c, i) => c.Event.CanDelete(Copies[i].Access)).FirstOrDefault();
 
-    /// <summary>The copy whose invitation the user can answer, or null.</summary>
-    public EventOccurrence? RespondableCopy => Merged.Copies.FirstOrDefault(c => c.Event.CanRespond);
+    /// <summary>
+    /// The copy whose invitation the user can answer, or null. Only the main calendar of an account is the user's
+    /// own: on a colleague's shared calendar Google marks the colleague as "self".
+    /// </summary>
+    public EventOccurrence? RespondableCopy => Merged.Copies.Where((c, i) => Copies[i].IsPrimary && c.Event.CanRespond).FirstOrDefault();
 
     /// <summary>Whether Join should show on the event in the time grid: from <paramref name="lead"/> before the start until the end.</summary>
     public bool IsJoinable(DateTime now, TimeSpan lead) => Meeting is not null && now >= Span.Start - lead && now < Span.End;

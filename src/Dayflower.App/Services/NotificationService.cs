@@ -9,7 +9,10 @@ using Microsoft.Windows.AppNotifications.Builder;
 namespace Dayflower.Services;
 
 /// <summary>What the user did with a notification: clicked it ("open"), Join, Snooze (with a choice) or Dismiss.</summary>
-public sealed record NotificationAction(string Action, string? Id, string? SnoozeChoice);
+public sealed record NotificationAction(string Action, string? Id, string? SnoozeChoice, string? Response = null);
+
+/// <summary>The content of a new-invitation notification.</summary>
+public sealed record InvitationToast(string Key, string Title, string When, string? From);
 
 /// <summary>The content of a reminder notification.</summary>
 public sealed record ReminderToast(string Id, string Title, string When, string? Detail, string? JoinLabel, bool KeepOnScreen, bool OfferSnooze);
@@ -95,6 +98,39 @@ public sealed class NotificationService(ILogger<NotificationService> logger)
         logger.LogInformation("Showed notification {Id}", toast.Id);
     }
 
+    /// <summary>A new invitation, with Accept / Maybe / Decline; clicking it opens Dayflower on that day.</summary>
+    public void ShowInvitation(InvitationToast toast)
+    {
+        if (!_registered)
+        {
+            return;
+        }
+
+        var builder = new AppNotificationBuilder()
+            .AddArgument("action", "invite")
+            .AddArgument("id", toast.Key)
+            .AddText($"Invitation: {toast.Title}")
+            .AddText(toast.When);
+        if (toast.From is { Length: > 0 } from)
+        {
+            builder.AddText($"From {from}");
+        }
+
+        foreach (var (label, response) in new[] { ("Accept", "accepted"), ("Maybe", "tentative"), ("Decline", "declined") })
+        {
+            builder.AddButton(new AppNotificationButton(label)
+                .AddArgument("action", "rsvp")
+                .AddArgument("id", toast.Key)
+                .AddArgument("response", response));
+        }
+
+        var notification = builder.BuildNotification();
+        notification.Tag = toast.Key.Length > 64 ? toast.Key[^64..] : toast.Key;
+        notification.Group = "invitations";
+        AppNotificationManager.Default.Show(notification);
+        logger.LogInformation("Showed invitation notification for {Key}", toast.Key);
+    }
+
     /// <summary>A plain notice, such as "Dayflower is still running".</summary>
     public void ShowNotice(string title, string text)
     {
@@ -107,5 +143,6 @@ public sealed class NotificationService(ILogger<NotificationService> logger)
     public static NotificationAction Parse(AppNotificationActivatedEventArgs args) => new(
         args.Arguments.TryGetValue("action", out var action) ? action : "open",
         args.Arguments.TryGetValue("id", out var id) ? id : null,
-        args.UserInput.TryGetValue("snooze", out var snooze) ? snooze : null);
+        args.UserInput.TryGetValue("snooze", out var snooze) ? snooze : null,
+        args.Arguments.TryGetValue("response", out var response) ? response : null);
 }

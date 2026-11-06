@@ -38,9 +38,13 @@ public sealed class EventActions(AppServices services, EventEditService edits, A
         return all.Where(c => c.Calendar.Access >= CalendarAccess.Writer && c.Calendar.IsVisible).ToList();
     }
 
-    /// <summary>The calendar to suggest for a new event: the last one used, else the first account's main calendar.</summary>
+    /// <summary>
+    /// The calendar to suggest for a new event: the one chosen in Settings, else the last one used, else the first
+    /// account's main calendar.
+    /// </summary>
     public EditorCalendar? DefaultCalendar(IReadOnlyList<EditorCalendar> calendars) =>
-        calendars.FirstOrDefault(c => $"{c.AccountId}|{c.Id}" == settings.LastCalendar)
+        calendars.FirstOrDefault(c => $"{c.AccountId}|{c.Id}" == settings.DefaultCalendar)
+        ?? calendars.FirstOrDefault(c => $"{c.AccountId}|{c.Id}" == settings.LastCalendar)
         ?? calendars.FirstOrDefault(c => c.Calendar.IsPrimary)
         ?? calendars.FirstOrDefault();
 

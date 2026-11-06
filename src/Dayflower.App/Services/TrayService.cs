@@ -12,8 +12,8 @@ using Windows.ApplicationModel;
 namespace Dayflower.Services;
 
 /// <summary>
-/// The notification-area icon: left-click opens Dayflower; right-click offers Open, Sync now, Start with Windows and
-/// Quit. The tooltip shows the next event.
+/// The notification-area icon: left-click opens Dayflower; right-click offers Open, New event, Sync now, Settings,
+/// Start with Windows and Quit. The tooltip shows the next event.
 /// </summary>
 public sealed class TrayService : IDisposable
 {
@@ -30,6 +30,10 @@ public sealed class TrayService : IDisposable
         open.Click += (_, _) => OpenRequested?.Invoke(this, EventArgs.Empty);
         var sync = new MenuFlyoutItem { Text = "Sync now", Icon = new FontIcon { Glyph = "" } };
         sync.Click += (_, _) => SyncRequested?.Invoke(this, EventArgs.Empty);
+        var newEvent = new MenuFlyoutItem { Text = "New event", Icon = new FontIcon { Glyph = "" } };
+        newEvent.Click += (_, _) => NewEventRequested?.Invoke(this, EventArgs.Empty);
+        var settings = new MenuFlyoutItem { Text = "Settings", Icon = new FontIcon { Glyph = "" } };
+        settings.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);
         _startup = new ToggleMenuFlyoutItem { Text = "Start with Windows" };
         _startup.Click += async (_, _) => await SetStartupAsync(_startup.IsChecked);
         var quit = new MenuFlyoutItem { Text = "Quit Dayflower", Icon = new FontIcon { Glyph = "" } };
@@ -37,7 +41,9 @@ public sealed class TrayService : IDisposable
 
         var menu = new MenuFlyout();
         menu.Items.Add(open);
+        menu.Items.Add(newEvent);
         menu.Items.Add(sync);
+        menu.Items.Add(settings);
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(_startup);
         menu.Items.Add(new MenuFlyoutSeparator());
@@ -61,6 +67,10 @@ public sealed class TrayService : IDisposable
     public event EventHandler? OpenRequested;
 
     public event EventHandler? SyncRequested;
+
+    public event EventHandler? NewEventRequested;
+
+    public event EventHandler? SettingsRequested;
 
     public event EventHandler? QuitRequested;
 
@@ -113,6 +123,19 @@ public static class StartupService
         catch (Exception)
         {
             return false; // not packaged
+        }
+    }
+
+    /// <summary>The startup task's state, or null when Dayflower isn't running as an installed package.</summary>
+    public static async Task<StartupTaskState?> GetStateAsync()
+    {
+        try
+        {
+            return (await StartupTask.GetAsync(TaskId)).State;
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 

@@ -17,7 +17,9 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Windows.Graphics;
+using Windows.System;
 using Windows.System.UserProfile;
 
 namespace Dayflower;
@@ -51,14 +53,14 @@ public sealed partial class MainWindow : Window
     private int _openFlyouts;
     private bool _reloadPending;
 
-    public MainWindow(AppServices services, AppSettings settings, JoinService join)
+    public MainWindow(AppServices services, AppSettings settings, JoinService join, EventEditService edits)
     {
         _services = services;
         _settings = settings;
         _join = join;
-        _data = new CalendarDataService(services);
+        _data = new CalendarDataService(services, () => settings.ShowDeclinedEvents);
         _logger = services.Loggers.CreateLogger<MainWindow>();
-        _edits = new EventEditService(services);
+        _edits = edits;
         _actions = new EventActions(services, _edits, settings, () => (FrameworkElement)Content);
 
         // Week start comes from Windows' regional settings (Settings > Time & language > Language & region).
@@ -78,6 +80,9 @@ public sealed partial class MainWindow : Window
         SizeAndCenter();
 
         MiniMonth.FirstDayOfWeek = weekStart;
+        WorldClockPanel.Initialize(settings);
+        settings.Changed += (_, _) => OnSettingsChanged();
+        Content.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(Root_KeyDown), handledEventsToo: false);
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         UpdateControlsFromPeriod();
 
@@ -88,9 +93,9 @@ public sealed partial class MainWindow : Window
                 _services.Sync.OnWindowActivated();
             }
         };
-        services.Sync.Completed += (_, _) => _ = ReloadAsync(periodChanged: false);
-        Accounts.CalendarsChanged += (_, _) => _ = ReloadAsync(periodChanged: false);
-        _edits.Changed += (_, _) => _ = ReloadAsync(periodChanged: false);
+        services.Sync.Completed += (_, _) => DataChanged();
+        Accounts.CalendarsChanged += (_, _) => DataChanged();
+        _edits.Changed += (_, _) => DataChanged();
         _actions.WorkingChanged += (_, working) => SavingBar.Visibility = working ? Visibility.Visible : Visibility.Collapsed;
         TimeGrid.CanMove = item => item.EditableCopy is not null;
 
@@ -182,10 +187,245 @@ public sealed partial class MainWindow : Window
     {
         if (e.PropertyName == nameof(ShellViewModel.Period))
         {
+            // Going to another date or view leaves search.
+            _searchQuery = null;
+            SearchPanel.Visibility = Visibility.Collapsed;
             UpdateControlsFromPeriod();
             _ = ReloadAsync(periodChanged: true);
         }
     }
+
+    /// <summary>The cache or the visible calendars changed: search starts afresh and the view reloads.</summary>
+    private void DataChanged()
+    {
+        _data.InvalidateSearch();
+        _ = ReloadAsync(periodChanged: false);
+    }
+
+    private void OnSettingsChanged()
+    {
+        ApplyTheme();
+        DataChanged();
+    }
+
+    // ---- Search ----------------------------------------------------------------------------------------------
+
+    // The query whose results are showing, or null for the calendar.
+    private string? _searchQuery;
+    private CancellationTokenSource? _suggestions;
+
+    /// <summary>As the user types: the first few matches, newest search only.</summary>
+    private async void SearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+    {
+        if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput)
+        {
+            return;
+        }
+
+        _suggestions?.Cancel();
+        var search = _suggestions = new CancellationTokenSource();
+        string text = sender.Text.Trim();
+        if (text.Length == 0)
+        {
+            sender.ItemsSource = null;
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(150, search.Token);
+            var results = await Task.Run(() => _data.SearchAsync(text, search.Token), search.Token);
+            if (!search.IsCancellationRequested)
+            {
+                sender.ItemsSource = results.Take(8).Select(i => new SearchSuggestion(i)).ToList();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Search failed");
+        }
+    }
+
+    /// <summary>Enter: all results in place of the calendar; a picked suggestion opens that event on its day.</summary>
+    private async void SearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+    {
+        _suggestions?.Cancel();
+        if (args.ChosenSuggestion is SearchSuggestion chosen)
+        {
+            ViewModel.ShowDate(chosen.Item.Span.FirstDay);
+            View_ItemClicked(this, new ItemClickedEventArgs(sender, chosen.Item));
+            return;
+        }
+
+        if (args.QueryText.Trim() is { Length: > 0 } query)
+        {
+            sender.ItemsSource = null;
+            _searchQuery = query;
+            await ReloadAsync(periodChanged: false);
+        }
+    }
+
+    private async Task ShowSearchResultsAsync(string query)
+    {
+        IReadOnlyList<CalendarItem> results;
+        try
+        {
+            results = await Task.Run(() => _data.SearchAsync(query));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Search failed");
+            return;
+        }
+
+        if (_searchQuery != query)
+        {
+            return;
+        }
+
+        SearchTitle.Text = results.Count switch
+        {
+            0 => $"No events match “{query}”",
+            1 => $"1 event matches “{query}”",
+            _ => $"{results.Count} events match “{query}”",
+        };
+        SearchResults.ShowResults(results, "Try other words, or check that the calendar is shown in the side pane.");
+        SearchPanel.Visibility = Visibility.Visible;
+    }
+
+    private void CloseSearchButton_Click(object sender, RoutedEventArgs e) => CloseSearch();
+
+    private void CloseSearch()
+    {
+        if (_searchQuery is null)
+        {
+            return;
+        }
+
+        _searchQuery = null;
+        SearchPanel.Visibility = Visibility.Collapsed;
+        SearchBox.Text = string.Empty;
+        _ = ReloadAsync(periodChanged: false);
+    }
+
+    private void FocusSearch()
+    {
+        CloseSettings();
+        SearchBox.Focus(FocusState.Keyboard);
+    }
+
+    // ---- Settings --------------------------------------------------------------------------------------------
+
+    private bool SettingsOpen => SettingsHost.Visibility == Visibility.Visible;
+
+    private void SettingsButton_Click(object sender, RoutedEventArgs e) => OpenSettings();
+
+    /// <summary>Shows the Settings page in place of the calendar.</summary>
+    public void OpenSettings()
+    {
+        if (SettingsOpen)
+        {
+            return;
+        }
+
+        var page = new SettingsView(_settings, Accounts, _actions);
+        page.CloseRequested += (_, _) => CloseSettings();
+        SettingsHost.Children.Add(page);
+        SettingsHost.Visibility = Visibility.Visible;
+        CalendarContent.Visibility = Visibility.Collapsed;
+        page.Loaded += (_, _) => page.Focus(FocusState.Programmatic);
+    }
+
+    private void CloseSettings()
+    {
+        if (!SettingsOpen)
+        {
+            return;
+        }
+
+        SettingsHost.Visibility = Visibility.Collapsed;
+        SettingsHost.Children.Clear();
+        CalendarContent.Visibility = Visibility.Visible;
+        SettingsButton.Focus(FocusState.Programmatic);
+    }
+
+    // ---- Keyboard --------------------------------------------------------------------------------------------
+
+    /// <summary>
+    /// Ctrl+N new event, Ctrl+F search, Ctrl+, settings, F5 sync, Esc back; and when not typing in a box: T today,
+    /// D / W / M / A views, Page Up / Page Down (or ← / →) previous and next.
+    /// </summary>
+    private void Root_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        bool ctrl = IsDown(VirtualKey.Control);
+        bool alt = IsDown(VirtualKey.Menu);
+        if (ctrl && !alt)
+        {
+            e.Handled = e.Key switch
+            {
+                VirtualKey.N => Do(NewEvent),
+                VirtualKey.F => Do(FocusSearch),
+                (VirtualKey)188 => Do(OpenSettings), // the comma key
+                VirtualKey.R => Do(() => _ = _services.Sync.SyncNowAsync()),
+                _ => false,
+            };
+            return;
+        }
+
+        if (alt)
+        {
+            return;
+        }
+
+        switch (e.Key)
+        {
+            case VirtualKey.Escape when SettingsOpen:
+                e.Handled = Do(CloseSettings);
+                return;
+            case VirtualKey.Escape when _searchQuery is not null:
+                e.Handled = Do(CloseSearch);
+                return;
+            case VirtualKey.F5:
+                e.Handled = Do(() => _ = _services.Sync.SyncNowAsync());
+                return;
+        }
+
+        if (SettingsOpen || IsTyping() || !Accounts.HasAccounts)
+        {
+            return;
+        }
+
+        e.Handled = e.Key switch
+        {
+            VirtualKey.T => Do(() => ViewModel.GoToTodayCommand.Execute(null)),
+            VirtualKey.D => Do(() => ViewModel.ShowView(CalendarViewKind.Day)),
+            VirtualKey.W => Do(() => ViewModel.ShowView(CalendarViewKind.Week)),
+            VirtualKey.M => Do(() => ViewModel.ShowView(CalendarViewKind.Month)),
+            VirtualKey.A => Do(() => ViewModel.ShowView(CalendarViewKind.Agenda)),
+            VirtualKey.PageUp or VirtualKey.Left => Do(() => ViewModel.GoToPreviousCommand.Execute(null)),
+            VirtualKey.PageDown or VirtualKey.Right => Do(() => ViewModel.GoToNextCommand.Execute(null)),
+            _ => false,
+        };
+
+        static bool Do(Action action)
+        {
+            action();
+            return true;
+        }
+    }
+
+    private static bool IsDown(VirtualKey key) =>
+        Microsoft.UI.Input.InputKeyboardSource.GetKeyStateForCurrentThread(key).HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
+
+    /// <summary>Whether the focus is somewhere letters and arrows mean something else: a text box, a list, a picker.</summary>
+    private bool IsTyping() => FocusManager.GetFocusedElement(Content.XamlRoot) is TextBox or PasswordBox or RichEditBox or AutoSuggestBox
+        or ComboBox or ComboBoxItem or ListViewItem or CalendarView or CalendarViewDayItem or SelectorBarItem or ToggleSwitch or Slider;
+
+    /// <summary>Opens the editor for a new event (Ctrl+N, the tray menu).</summary>
+    public void NewEvent() => NewEventButton_Click(this, new RoutedEventArgs());
 
     /// <summary>Loads the current period from the cache and shows it in the matching view.</summary>
     private async Task ReloadAsync(bool periodChanged)
@@ -215,9 +455,14 @@ public sealed partial class MainWindow : Window
         }
 
         bool hasAccounts = Accounts.HasAccounts;
-        TimeGrid.Visibility = Show(hasAccounts && period.Kind is CalendarViewKind.Day or CalendarViewKind.Week);
-        MonthGrid.Visibility = Show(hasAccounts && period.Kind == CalendarViewKind.Month);
-        AgendaList.Visibility = Show(hasAccounts && period.Kind == CalendarViewKind.Agenda);
+        bool calendar = hasAccounts && _searchQuery is null;
+        TimeGrid.Visibility = Show(calendar && period.Kind is CalendarViewKind.Day or CalendarViewKind.Week);
+        MonthGrid.Visibility = Show(calendar && period.Kind == CalendarViewKind.Month);
+        AgendaList.Visibility = Show(calendar && period.Kind == CalendarViewKind.Agenda);
+        if (_searchQuery is { } query)
+        {
+            await ShowSearchResultsAsync(query);
+        }
 
         switch (period.Kind)
         {
@@ -365,18 +610,30 @@ public sealed partial class MainWindow : Window
 
     private async void View_JoinClicked(object? sender, CalendarItem item) => await _join.JoinAsync(item);
 
-    /// <summary>Follows Windows' light/dark mode unless settings.json picks one.</summary>
+    /// <summary>Follows Windows' light/dark mode unless Settings picks one.</summary>
     private void ApplyTheme()
     {
-        if (_settings.Theme == AppTheme.System || Content is not FrameworkElement root)
+        if (Content is not FrameworkElement root)
         {
             return;
         }
 
-        bool light = _settings.Theme == AppTheme.Light;
-        root.RequestedTheme = light ? ElementTheme.Light : ElementTheme.Dark;
-        AppWindow.TitleBar.ButtonForegroundColor = light ? Microsoft.UI.Colors.Black : Microsoft.UI.Colors.White;
-        AppWindow.TitleBar.ButtonHoverForegroundColor = AppWindow.TitleBar.ButtonForegroundColor;
+        root.RequestedTheme = _settings.Theme switch
+        {
+            AppTheme.Light => ElementTheme.Light,
+            AppTheme.Dark => ElementTheme.Dark,
+            _ => ElementTheme.Default,
+        };
+
+        // The caption buttons follow the window's own theme unless the app overrides it.
+        Windows.UI.Color? buttons = _settings.Theme switch
+        {
+            AppTheme.Light => Microsoft.UI.Colors.Black,
+            AppTheme.Dark => Microsoft.UI.Colors.White,
+            _ => null,
+        };
+        AppWindow.TitleBar.ButtonForegroundColor = buttons;
+        AppWindow.TitleBar.ButtonHoverForegroundColor = buttons;
     }
 
     private void UpdateControlsFromPeriod()

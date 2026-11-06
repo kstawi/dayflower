@@ -226,7 +226,7 @@ public sealed partial class AccountsViewModel : ObservableObject
         var stats = await _services.Store.GetStatsAsync();
         CacheTitle = string.Create(CultureInfo.CurrentCulture,
             $"{stats.Events:N0} {(stats.Events == 1 ? "event" : "events")} from {stats.Calendars} {(stats.Calendars == 1 ? "calendar" : "calendars")} saved on this PC");
-        CacheDetail = "The day, week and month views come in the next version.";
+        CacheDetail = string.Empty;
     }
 
     private void ShowMessage(InfoBarSeverity severity, string title, string message)
