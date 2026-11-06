@@ -83,6 +83,68 @@ gh secret set GOOGLE_OAUTH_CLIENT_SECRET --repo kstawi/dayflower
 
 A release fails straight away if either is missing, rather than shipping a Dayflower that can't sign in.
 
+## 8. Homepage and domain, for Google's verification
+
+Google's review of the Calendar permissions needs Dayflower's homepage and privacy policy on a domain you own,
+verified in Google Search Console. The homepage is in `site/` and the Homepage workflow publishes it with GitHub
+Pages.
+
+### First try: GitHub's free address
+
+Google's rules don't say whether a GitHub Pages address counts as a domain you own, so this is worth a try before
+buying one. `github.io` is on the public suffix list, so `kstawi.github.io` is a domain of its own for Google.
+
+1. **Switch on Pages for the repo:** repo **Settings** › **Pages** › Source **GitHub Actions**. The homepage appears
+   at `https://kstawi.github.io/dayflower/`.
+2. **Verify `kstawi.github.io` with Google:** in [Google Search Console](https://search.google.com/search-console),
+   signed in as the Google account that owns the Dayflower Cloud project, add a **URL prefix** property for
+   `https://kstawi.github.io/` and choose the **HTML file** method. Google's file has to be served from the top of
+   that address, which is the user site: a repo named `kstawi.github.io` with that file (and an `index.html` that
+   forwards to `/dayflower/`), published from its main branch. Then click **Verify**. Keep the file there.
+3. **Fill in the consent screen's branding:** Google Cloud console › **Google Auth Platform** › **Branding**:
+   - App home page: `https://kstawi.github.io/dayflower/`
+   - Privacy policy: `https://kstawi.github.io/dayflower/privacy.html`
+   - Authorized domains: `kstawi.github.io`
+
+If Google won't accept the address, use a domain of your own instead:
+
+### If Google refuses it: getdayflower.com
+
+1. **Buy the domain** at a registrar of your choice. If it came with parking or forwarding records, delete them.
+2. **Verify it for your GitHub account**, so no one else can attach it to their site: on GitHub, click your profile
+   picture › **Settings** › **Pages** (your profile's settings, not the repo's) › **Add a domain**, enter
+   `getdayflower.com`, then add the TXT record it shows at your registrar: name `_github-pages-challenge-kstawi`,
+   value as shown. Click **Verify** once it's in (DNS changes can take up to a day). Keep the record afterwards.
+3. **Give the repo's Pages the domain:** repo **Settings** › **Pages** › Custom domain `getdayflower.com` › **Save**.
+   A workflow-published site takes its domain from here, not from a CNAME file.
+4. **Point the domain at GitHub** at your registrar:
+
+   | Type | Name | Value |
+   |---|---|---|
+   | A | `@` | `185.199.108.153` |
+   | A | `@` | `185.199.109.153` |
+   | A | `@` | `185.199.110.153` |
+   | A | `@` | `185.199.111.153` |
+   | AAAA | `@` | `2606:50c0:8000::153` |
+   | AAAA | `@` | `2606:50c0:8001::153` |
+   | AAAA | `@` | `2606:50c0:8002::153` |
+   | AAAA | `@` | `2606:50c0:8003::153` |
+   | CNAME | `www` | `kstawi.github.io` |
+
+   GitHub then serves the site at both names and redirects one to the other. Check with
+   `Resolve-DnsName getdayflower.com`.
+5. **HTTPS:** once GitHub has issued the certificate (usually minutes, sometimes up to a day), tick **Enforce
+   HTTPS** in the repo's Pages settings. If it hasn't come after a while, remove the custom domain and save it again.
+6. **Verify the domain with Google:** in [Google Search Console](https://search.google.com/search-console), signed
+   in as the Google account that owns the Dayflower Cloud project, add a **Domain** property for `getdayflower.com`
+   and add the TXT record (`google-site-verification=…`) it gives you at your registrar, then click **Verify**.
+7. **Fill in the consent screen's branding:** Google Cloud console › **Google Auth Platform** › **Branding**:
+   - App home page: `https://getdayflower.com`
+   - Privacy policy: `https://getdayflower.com/privacy.html`
+   - Authorized domains: `getdayflower.com`
+
+After that the app is ready to submit for verification, with a demo video and a reason for each permission.
+
 ## Work accounts
 
 A Workspace account run by someone else's admin may refuse to sign in with a message like **"Access blocked:

@@ -17,8 +17,12 @@ Dayflower only uses this data to show and manage your calendar on your PC.
 
 ## Where your data goes
 
-- **To Google only.** Dayflower talks directly from your PC to Google's APIs. It sends nothing to the developer
-  or to anyone else.
+- **Your calendar data goes to Google only.** Dayflower talks directly from your PC to Google's APIs. It sends
+  nothing to the developer or to anyone else.
+- **Updates come from GitHub.** Every few hours Dayflower asks GitHub, where its releases are published, whether
+  there's a new version, and downloads it from there. These requests contain no calendar or account data; GitHub
+  sees your IP address, as with any download (see
+  [GitHub's privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement)).
 - **Kept on your PC.** Calendar data is cached in Dayflower's folder in your Windows user profile, so the app
   works offline. Google sign-in tokens are encrypted with Windows (DPAPI) for your Windows user account.
 - **Meeting links** open in your default web browser when you click Join.

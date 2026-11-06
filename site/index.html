@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dayflower</title>
+  <meta name="description" content="A Windows 11 calendar for all your Google accounts, with a Join button for every meeting. Free and open source.">
+  <link rel="icon" href="favicon.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="icon.png" alt="">Dayflower</a>
+      <nav class="site-nav" aria-label="Site">
+        <a href="#features">Features</a>
+        <a href="#google-data">Your Google data</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="https://github.com/kstawi/dayflower">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <img src="icon.png" alt="The Dayflower icon: a calendar pad">
+      <h1>Dayflower</h1>
+      <p class="tagline">A Windows 11 calendar for all your Google accounts, with a Join button for every meeting.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/kstawi/dayflower/releases">Download for Windows</a>
+        <a class="button" href="https://github.com/kstawi/dayflower">Source code</a>
+      </div>
+      <p class="fine">Free and open source · Windows 11 · x64 and ARM</p>
+    </div>
+
+    <section id="features">
+      <div class="wrap">
+        <h2>What it does</h2>
+        <p class="lead">Dayflower shows your Google calendars in an app built to look and feel like part of Windows 11.</p>
+        <div class="grid">
+          <div class="card">
+            <h3>All your accounts together</h3>
+            <p>Personal Gmail and Google Workspace calendars side by side, in day, week, month and agenda views. A meeting on two of your accounts shows once.</p>
+          </div>
+          <div class="card">
+            <h3>Join in one click</h3>
+            <p>A Join button on every video meeting (Google Meet, Zoom, Teams, Webex and more): on the event, in its details and on its reminder.</p>
+          </div>
+          <div class="card">
+            <h3>The reminders you set in Google</h3>
+            <p>Desktop notifications at the times set in Google Calendar, with Snooze and a "starting now" alert for meetings.</p>
+          </div>
+          <div class="card">
+            <h3>Full editing</h3>
+            <p>Create, change and delete events, repeating ones included. Drag to move or resize, reply to invitations and see when guests are free.</p>
+          </div>
+          <div class="card">
+            <h3>Search and invitations</h3>
+            <p>Search across all your accounts, and get a notification with Accept, Maybe and Decline when an invitation arrives.</p>
+          </div>
+          <div class="card">
+            <h3>Made for Windows 11</h3>
+            <p>Follows light and dark mode and your accent colour, shows today's date on its icon, starts with Windows and updates itself.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="google-data">
+      <div class="wrap">
+        <h2>How Dayflower uses your Google data</h2>
+        <p class="lead">When you add a Google account, Google asks you to allow these permissions. Dayflower uses each one only for what's described here, on your PC.</p>
+        <div class="data">
+          <dl>
+            <div class="row">
+              <dt>See your calendars<code>calendar.calendarlist.readonly</code></dt>
+              <dd>Lists your calendars, with their names and colours, so you can choose which ones Dayflower shows.</dd>
+            </div>
+            <div class="row">
+              <dt>See and edit your events<code>calendar.events</code></dt>
+              <dd>Shows your events, Join links and reminders, and makes the changes you ask for: creating, changing and deleting events, replying to invitations, adding a Google Meet link.</dd>
+            </div>
+            <div class="row">
+              <dt>See when guests are free<code>calendar.events.freebusy</code></dt>
+              <dd>Optional. When you plan a meeting, shows when the people you invite are busy, without showing their events.</dd>
+            </div>
+            <div class="row">
+              <dt>Your email address and name<code>openid, email, profile</code></dt>
+              <dd>Shows which Google account each calendar belongs to, and tells your accounts apart.</dd>
+            </div>
+          </dl>
+        </div>
+        <ul class="points">
+          <li><strong>No servers.</strong> Dayflower talks directly from your PC to Google. The developer never receives, stores or sees your data.</li>
+          <li><strong>Kept on your PC.</strong> Your calendar is cached on your PC so Dayflower works offline, and your Google sign-in is encrypted for your Windows account.</li>
+          <li><strong>No tracking.</strong> No analytics, telemetry or ads, and your data is never sold or shared.</li>
+          <li><strong>Yours to remove.</strong> Removing an account or uninstalling Dayflower deletes its data from your PC; you can withdraw its access at <a href="https://myaccount.google.com/permissions">Google account permissions</a>.</li>
+        </ul>
+        <p class="limited">Dayflower's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Read the full <a href="privacy.html">privacy policy</a>.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <nav aria-label="Footer">
+        <a href="privacy.html">Privacy policy</a>
+        <a href="https://github.com/kstawi/dayflower">Source code</a>
+        <a href="https://github.com/kstawi/dayflower/issues/new/choose">Report a problem</a>
+        <a href="https://github.com/kstawi/dayflower/blob/main/LICENSE">Licence (GPL-3.0)</a>
+      </nav>
+      <span class="copy">© 2026 kstawi</span>
+    </div>
+  </footer>
+</body>
+</html>

@@ -484,3 +484,6 @@ $RECYCLE.BIN/
 # Dayflower
 # Google OAuth client for local builds (see docs/google-cloud-setup.md)
 google-oauth.local.props
+
+# The homepage as built by site/build.ps1
+_site/

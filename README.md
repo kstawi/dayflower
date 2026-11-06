@@ -80,6 +80,7 @@ sign-in secrets described in [Google Cloud setup](docs/google-cloud-setup.md#7-g
 | `src/Dayflower.Core` | Provider-neutral model and logic, with no UI or Google code |
 | `src/Dayflower.Storage` | Local cache, search index and settings |
 | `src/Dayflower.Providers.Google` | Google sign-in and the Google Calendar API |
+| `site/` | The homepage, published by GitHub Pages (`.github/workflows/pages.yml`); `site/build.ps1` builds it into `_site/`, rendering [PRIVACY.md](PRIVACY.md) into its privacy page |
 | `tests/` | Unit tests |
 | `tools/Dayflower.DevTool` | `dayflower-dev`: cache statistics, a one-off sync, the latest changes, and checks against Google (`audit` for repeating events, `compare` for everything the views show), of Join links (`meetings`), and of every kind of edit on throwaway events (`edit-test`) |
 | `tools/Pack.ps1` | Builds the installer (`Setup.exe`) and update packages with [Velopack](https://velopack.io) into `releases/`; `-PackId DayflowerTest` makes a test install that keeps its own folder, data and start-up entry |

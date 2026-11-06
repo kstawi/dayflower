@@ -378,6 +378,16 @@ and you install it the same way. Steps 1 and 6 need only you and can start strai
 1. **Google verification (you, with texts from me).** Buy a domain; I build a small homepage and put the privacy
    policy on it, published by GitHub Pages from the repo. You verify the domain in Search Console, record the demo
    video from a script I write, and submit with the scope reasons I draft.
+
+   **Homepage built 2026-11-06** (`site/`, published by `.github/workflows/pages.yml`): what Dayflower does, each
+   Google permission and what it's used for, how data is handled, the Limited Use statement, and the privacy policy
+   rendered from `PRIVACY.md` (which now also says update checks go to GitHub). Checked in light and dark and at
+   phone width. Address: first GitHub's free `https://kstawi.github.io/dayflower/`, verified in Search Console through
+   a `kstawi.github.io` user site holding Google's file (2026-11-06); Google's rules don't say whether that counts,
+   so `getdayflower.com` is the fallback (free; `dayflower.com`, `.app`, `.dev`, `.io`, `.org` and `.net` are taken,
+   `.org` by an unrelated 3D renderer). Steps in
+   [google-cloud-setup.md step 8](google-cloud-setup.md#8-homepage-and-domain-for-googles-verification). Then the
+   video script and scope reasons, and app screenshots made with a demo account rather than real events.
 2. **Unpackaged build, checked first.** Dayflower built as a self-contained app (the .NET runtime and Windows App SDK
    included, nothing to install first), then a check of everything that behaves differently without a package:
    - notifications show Dayflower's name and icon, and their buttons (Join, Snooze, Accept / Maybe / Decline) reach
