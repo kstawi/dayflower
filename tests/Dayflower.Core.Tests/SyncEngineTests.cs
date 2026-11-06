@@ -174,6 +174,8 @@ public class SyncEngineTests
 
         public CalendarEvent ParseEvent(string accountId, string calendarId, string payload) =>
             throw new NotSupportedException();
+
+        public string? EventColor(string colorId) => null;
     }
 
     private sealed class FakeConnection : ICalendarConnection
@@ -233,6 +235,10 @@ public class SyncEngineTests
 
         public Task<IReadOnlyList<CalendarEvent>> GetOccurrencesAsync(
             string calendarId, string seriesId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CalendarEvent>> GetExpandedEventsAsync(
+            string calendarId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
         public Task RevokeAsync(CancellationToken cancellationToken) => Task.CompletedTask;

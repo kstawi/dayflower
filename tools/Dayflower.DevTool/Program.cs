@@ -9,6 +9,8 @@
 //   dayflower-dev audit  [--data <folder>] [--from yyyy-MM-dd] [--days 120]
 //                                                        compare repeating events with Google's own expansion
 //   dayflower-dev recent [--data <folder>] [--count 5]   the most recently changed events (times and IDs only)
+//   dayflower-dev compare [--data <folder>] [--from yyyy-MM-dd] [--days 42]
+//                                                        what the views show vs Google's expanded list, per calendar
 //
 // --data defaults to the installed app's LocalState folder.
 
@@ -48,6 +50,8 @@ switch (command)
         return await AuditAsync(int.Parse(Option("--days") ?? "120", CultureInfo.InvariantCulture));
     case "recent":
         return Recent(int.Parse(Option("--count") ?? "5", CultureInfo.InvariantCulture));
+    case "compare":
+        return await CompareAsync(int.Parse(Option("--days") ?? "42", CultureInfo.InvariantCulture));
     default:
         Console.Error.WriteLine($"Unknown command {command}. Use stats, sync or audit.");
         return 1;
@@ -191,6 +195,73 @@ async Task<int> AuditAsync(int days)
     bool Inside(EventTime t) => t.EarliestUtc.AddHours(t.IsAllDay ? 14 : 0) >= innerFrom && t.EarliestUtc < innerTo;
 
     static bool Same(EventTime a, EventTime b) => a.IsAllDay == b.IsAllDay && a.OccurrenceKey == b.OccurrenceKey;
+}
+
+// Everything the calendar views would show for a range (cache, repeats expanded, overrides applied) compared with
+// Google's own expanded list of the same range, event by event.
+async Task<int> CompareAsync(int days)
+{
+    var from = Option("--from") is { } start
+        ? new DateTimeOffset(DateTime.ParseExact(start, "yyyy-MM-dd", CultureInfo.InvariantCulture), TimeSpan.Zero)
+        : new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero).AddDays(-7);
+    var to = from.AddDays(days);
+    var innerFrom = from.AddDays(1);
+    var innerTo = to.AddDays(-1);
+
+    int calendars = 0, matched = 0, problems = 0;
+    foreach (var account in (await store.GetAccountsAsync()).Where(a => a.State == AccountState.Ok))
+    {
+        var connection = google.Connect(account.Id, protector.Unprotect((await store.GetAccountSecretAsync(account.Id))!));
+        var cached = (await store.GetEventsAsync(from, to)).Where(s => s.Key.AccountId == account.Id)
+            .Select(s => google.ParseEvent(s.Key.AccountId, s.Key.CalendarId, s.Payload)).ToList();
+
+        foreach (var calendar in await store.GetCalendarsAsync(account.Id))
+        {
+            calendars++;
+            var local = OccurrenceResolver.Resolve(cached.Where(e => e.Key.CalendarId == calendar.Id), from, to)
+                .Where(o => Inside(o.Start))
+                .GroupBy(InstanceId).ToDictionary(g => g.Key, g => g.First());
+            var remote = (await connection.GetExpandedEventsAsync(calendar.Id, from, to, CancellationToken.None))
+                .Where(e => Inside(e.Start))
+                .GroupBy(e => e.Key.EventId).ToDictionary(g => g.Key, g => g.First());
+
+            var issues = new List<string>();
+            foreach (var id in remote.Keys.Union(local.Keys).Order())
+            {
+                bool inRemote = remote.TryGetValue(id, out var r), inLocal = local.TryGetValue(id, out var l);
+                if (inRemote && inLocal && r!.Start.OccurrenceKey == l!.Start.OccurrenceKey && r.End.OccurrenceKey == l.End.OccurrenceKey)
+                {
+                    matched++;
+                }
+                else if (inRemote && inLocal)
+                {
+                    issues.Add($"    {id}: Google {r!.Start} - {r.End}, Dayflower {l!.Start} - {l.End}");
+                }
+                else
+                {
+                    issues.Add($"    {id} ({(inRemote ? r!.Start : l!.Start)}): only in {(inRemote ? "Google" : "Dayflower")}");
+                }
+            }
+
+            Console.WriteLine($"  {account.Email} / {calendar.Name}: {remote.Count} at Google, {local.Count} in Dayflower");
+            issues.ForEach(Console.WriteLine);
+            problems += issues.Count;
+        }
+    }
+
+    Console.WriteLine($"Compared {calendars} calendars from {from:yyyy-MM-dd} to {to:yyyy-MM-dd}: {matched} events match, {problems} differ.");
+    return problems == 0 ? 0 : 3;
+
+    bool Inside(EventTime t) => t.EarliestUtc.AddHours(t.IsAllDay ? 14 : 0) >= innerFrom && t.EarliestUtc < innerTo;
+
+    // Google names an occurrence of a series "<series>_<original start>", e.g. abc_20261106T090000Z or abc_20261106.
+    // A series split off by a "this and following" change is called abc_R20261105T170000, but its occurrences
+    // keep the original name: abc_20261112T170000Z.
+    static string InstanceId(EventOccurrence o) => o.Event.IsSeries
+        ? $"{System.Text.RegularExpressions.Regex.Replace(o.Event.Key.EventId, @"_R\d{8}(T\d{6})?$", string.Empty)}_{(o.OriginalStart!.IsAllDay
+            ? o.OriginalStart.Date!.Value.ToString("yyyyMMdd", CultureInfo.InvariantCulture)
+            : o.OriginalStart.DateTime!.Value.UtcDateTime.ToString("yyyyMMdd'T'HHmmss'Z'", CultureInfo.InvariantCulture))}"
+        : o.Event.Key.EventId;
 }
 
 int Recent(int count)

@@ -4,8 +4,8 @@ A Windows 11 calendar app that shows several Google accounts in one calendar, pu
 video meeting, and raises desktop reminders that match the reminders set in Google Calendar. It's built to look
 like part of Windows 11, starts with Google, and leaves room for Microsoft 365, iCloud, CalDAV and ICS later.
 
-Status: agreed in the planning interview on 2026-11-06. Phases 0 (setup) and 1 (accounts and sync) are done;
-phase 2 (calendar views) is next.
+Status: agreed in the planning interview on 2026-11-06. Phases 0 (setup), 1 (accounts and sync) and 2 (calendar
+views) are done; phase 3 (Join) is next.
 
 ## 1. Decisions
 
@@ -189,7 +189,10 @@ dayflower/
 | Tests | xUnit; FlaUI for UI smoke tests |
 
 The day/week/month grid is a custom control. There is no free WinUI scheduler control, and commercial ones don't
-fit a public open-source project.
+fit a public open-source project. The views build their elements in code; the layout maths (side-by-side clashing
+events, lanes for multi-day items, local-time spans, merging copies of a meeting) lives in Core with unit tests.
+Brushes for code-built elements are looked up for the element's own light or dark theme, so the views follow a
+theme change while the app is open.
 
 ### 3.3 Provider abstraction
 
@@ -275,6 +278,9 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
 - Week, day, month and agenda views; event details flyout (read-only); merged duplicates; declined/tentative styling.
 - **Done when:** the four views show the same events as Google Calendar for all accounts, look at home next to
   Windows Settings in light and dark mode, and stay smooth when scrolling through months.
+- **Result:** the dev tool's `compare` matched 374 of 374 events against Google's own expanded list (March 2026 to
+  January 2027, three calendars). Merging copies across accounts is covered by tests; it gets a real check once a
+  second account with shared meetings is added.
 
 ### Phase 3: Join (M)
 - Meeting-link detection with a unit-test suite built from real-world invites (Meet, Zoom, Teams, Webex…).

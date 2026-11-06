@@ -26,6 +26,9 @@ public interface ICalendarProvider
 
     /// <summary>Turns an event payload stored in the cache back into an event.</summary>
     CalendarEvent ParseEvent(string accountId, string calendarId, string payload);
+
+    /// <summary>The colour (#rrggbb) of one of the provider's event colour IDs, or null if it's unknown.</summary>
+    string? EventColor(string colorId);
 }
 
 /// <summary>An account that has just signed in.</summary>
@@ -48,6 +51,10 @@ public interface ICalendarConnection
     /// <summary>The provider's own expansion of a repeating event within a time range.</summary>
     Task<IReadOnlyList<CalendarEvent>> GetOccurrencesAsync(
         string calendarId, string seriesId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
+
+    /// <summary>The provider's own list of what happens in a calendar in a time range, repeating events expanded.</summary>
+    Task<IReadOnlyList<CalendarEvent>> GetExpandedEventsAsync(
+        string calendarId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
 
     /// <summary>Withdraws Dayflower's access to the account at the provider.</summary>
     Task RevokeAsync(CancellationToken cancellationToken);

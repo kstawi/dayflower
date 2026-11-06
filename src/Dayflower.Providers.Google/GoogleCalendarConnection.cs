@@ -102,6 +102,30 @@ internal sealed class GoogleCalendarConnection(
         return result;
     }
 
+    public async Task<IReadOnlyList<CalendarEvent>> GetExpandedEventsAsync(
+        string calendarId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken)
+    {
+        var result = new List<CalendarEvent>();
+        string? pageToken = null;
+        do
+        {
+            var url = new StringBuilder("calendars/").Append(Uri.EscapeDataString(calendarId))
+                .Append("/events?maxResults=2500&singleEvents=true");
+            AppendIfSet(url, "timeMin", from.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture));
+            AppendIfSet(url, "timeMax", to.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture));
+            AppendIfSet(url, "pageToken", pageToken);
+
+            using var page = await api.GetAsync(url.ToString(), cancellationToken);
+            result.AddRange(Items(page.RootElement)
+                .Where(i => GoogleEventMapper.Str(i, "status") != "cancelled")
+                .Select(i => GoogleEventMapper.Map(i, accountId, calendarId)));
+            pageToken = GoogleEventMapper.Str(page.RootElement, "nextPageToken");
+        }
+        while (pageToken is not null);
+
+        return result;
+    }
+
     public Task RevokeAsync(CancellationToken cancellationToken) => oauth.RevokeAsync(tokens.RefreshToken, cancellationToken);
 
     /// <summary>

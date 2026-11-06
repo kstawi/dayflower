@@ -68,26 +68,41 @@ public sealed partial class AccountsViewModel : ObservableObject
     /// <summary>Asks the user to confirm; set by the window, which owns dialogs. Arguments: title, text, button.</summary>
     public Func<string, string, string, Task<bool>>? ConfirmAsync { get; set; }
 
+    /// <summary>Raised when accounts or calendars change, or a calendar is shown or hidden.</summary>
+    public event EventHandler? CalendarsChanged;
+
     public async Task LoadAsync()
     {
         var accounts = await _services.Store.GetAccountsAsync();
         var calendars = await _services.Store.GetCalendarsAsync();
 
-        Accounts.Clear();
-        foreach (var account in accounts)
+        // Rebuild the list only when something visible in it changed, so a sync every two minutes doesn't redraw
+        // the pane under the user's pointer. Show/hide is left out: the checkboxes already show it.
+        string signature = string.Join('|', accounts.Select(a => $"{a.Id}:{a.State}")
+            .Concat(calendars.Select(c => $"{c.AccountId}/{c.Id}/{c.Name}/{c.BackgroundColor}")));
+        if (signature != _signature)
         {
-            var item = new AccountItemViewModel(this, account);
-            foreach (var calendar in calendars.Where(c => c.AccountId == account.Id))
+            _signature = signature;
+            Accounts.Clear();
+            foreach (var account in accounts)
             {
-                item.Calendars.Add(new CalendarItemViewModel(this, calendar));
+                var item = new AccountItemViewModel(this, account);
+                foreach (var calendar in calendars.Where(c => c.AccountId == account.Id))
+                {
+                    item.Calendars.Add(new CalendarItemViewModel(this, calendar));
+                }
+
+                Accounts.Add(item);
             }
 
-            Accounts.Add(item);
+            HasAccounts = Accounts.Count > 0;
+            CalendarsChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        HasAccounts = Accounts.Count > 0;
         await UpdateCacheSummaryAsync();
     }
+
+    private string? _signature;
 
     [RelayCommand]
     private Task AddAccountAsync() => SignInAsync(null);
@@ -174,8 +189,11 @@ public sealed partial class AccountsViewModel : ObservableObject
         await LoadAsync();
     }
 
-    internal Task SetCalendarVisibleAsync(CalendarItemViewModel calendar, bool visible) =>
-        _services.Store.SetCalendarVisibleAsync(calendar.AccountId, calendar.Id, visible);
+    internal async Task SetCalendarVisibleAsync(CalendarItemViewModel calendar, bool visible)
+    {
+        await _services.Store.SetCalendarVisibleAsync(calendar.AccountId, calendar.Id, visible);
+        CalendarsChanged?.Invoke(this, EventArgs.Empty);
+    }
 
     private async Task OnSyncCompletedAsync(SyncReport report)
     {

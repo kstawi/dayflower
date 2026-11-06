@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Dayflower"
+    xmlns:views="using:Dayflower.Views"
     xmlns:vm="using:Dayflower.ViewModels"
     Title="Dayflower">
 
@@ -275,12 +276,37 @@
                     </SelectorBar>
                 </Grid>
 
+                <views:TimeGridView
+                    x:Name="TimeGrid"
+                    Grid.Row="1"
+                    Margin="8,0,8,0"
+                    DayClicked="View_DayClicked"
+                    ItemClicked="View_ItemClicked"
+                    Visibility="Collapsed" />
+
+                <views:MonthView
+                    x:Name="MonthGrid"
+                    Grid.Row="1"
+                    Margin="16,0,16,16"
+                    DayClicked="View_DayClicked"
+                    ItemClicked="View_ItemClicked"
+                    Visibility="Collapsed" />
+
+                <views:AgendaView
+                    x:Name="AgendaList"
+                    Grid.Row="1"
+                    Margin="8,0,8,0"
+                    ItemClicked="View_ItemClicked"
+                    Visibility="Collapsed" />
+
                 <StackPanel
+                    x:Name="EmptyState"
                     Grid.Row="1"
                     Padding="24"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Spacing="8">
+                    Spacing="8"
+                    Visibility="{x:Bind Accounts.HasNoAccounts, Mode=OneWay}">
                     <FontIcon
                         Margin="0,0,0,8"
                         FontSize="48"

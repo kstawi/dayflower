@@ -42,6 +42,15 @@ public sealed record CalendarPeriod
     /// <summary>The day after the last day shown.</summary>
     public DateOnly End { get; }
 
+    /// <summary>
+    /// The first day on screen. The month view shows whole weeks, so it starts on the first day of the week that
+    /// contains the 1st; other views start at <see cref="Start"/>.
+    /// </summary>
+    public DateOnly GridStart => Kind == CalendarViewKind.Month ? StartOfWeek(Start, FirstDayOfWeek) : Start;
+
+    /// <summary>The day after the last day on screen; see <see cref="GridStart"/>.</summary>
+    public DateOnly GridEnd => Kind == CalendarViewKind.Month ? StartOfWeek(End.AddDays(-1), FirstDayOfWeek).AddDays(7) : End;
+
     public bool Contains(DateOnly date) => date >= Start && date < End;
 
     public CalendarPeriod Next() => WithAnchor(Step(+1));

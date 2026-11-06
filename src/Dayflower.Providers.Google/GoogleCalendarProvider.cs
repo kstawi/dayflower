@@ -49,6 +49,17 @@ public sealed class GoogleCalendarProvider(
         return GoogleEventMapper.Map(json.RootElement, accountId, calendarId);
     }
 
+    /// <summary>
+    /// Google's event colours by ID, as the API's colors.get returns them (the palette is the same for everyone).
+    /// </summary>
+    private static readonly Dictionary<string, string> EventColors = new()
+    {
+        ["1"] = "#a4bdfc", ["2"] = "#7ae7bf", ["3"] = "#dbadff", ["4"] = "#ff887c", ["5"] = "#fbd75b", ["6"] = "#ffb878",
+        ["7"] = "#46d6db", ["8"] = "#e1e1e1", ["9"] = "#5484ed", ["10"] = "#51b749", ["11"] = "#dc2127",
+    };
+
+    public string? EventColor(string colorId) => EventColors.GetValueOrDefault(colorId);
+
     private GoogleOAuthClient OAuth => _oauth
         ?? throw new InvalidOperationException("This build of Dayflower has no Google OAuth client.");
 }

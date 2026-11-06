@@ -31,6 +31,9 @@ public sealed partial class ShellViewModel : ObservableObject
 
     public void ShowView(CalendarViewKind kind) => Period = Period.WithKind(kind);
 
+    /// <summary>Opens the day view on <paramref name="date"/>, e.g. from a day heading or "+3 more".</summary>
+    public void ShowDay(DateOnly date) => Period = new CalendarPeriod(CalendarViewKind.Day, date, Period.FirstDayOfWeek);
+
     [RelayCommand]
     private void GoToToday() => ShowDate(_today());
 

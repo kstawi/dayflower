@@ -5,9 +5,13 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Dayflower.Calendar;
 using Dayflower.Core.Calendar;
 using Dayflower.Services;
 using Dayflower.ViewModels;
+using Dayflower.Views;
+using Microsoft.Extensions.Logging;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -24,13 +28,21 @@ public sealed partial class MainWindow : Window
     private const int MinimumHeight = 520;
 
     private readonly AppServices _services;
+    private readonly CalendarDataService _data;
+    private readonly AppSettings _settings = AppSettings.Load();
+    private readonly ILogger<MainWindow> _logger;
 
     // Set while the window updates the mini month or view switcher itself, so their change events don't loop back.
     private bool _updatingControls;
 
+    // Each reload gets a number; a slower, older reload doesn't overwrite a newer one.
+    private int _loadVersion;
+
     public MainWindow(AppServices services)
     {
         _services = services;
+        _data = new CalendarDataService(services);
+        _logger = services.Loggers.CreateLogger<MainWindow>();
 
         // Week start comes from Windows' regional settings (Settings > Time & language > Language & region).
         var weekStart = GlobalizationPreferences.WeekStartsOn;
@@ -45,6 +57,7 @@ public sealed partial class MainWindow : Window
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
         AppWindow.SetIcon("Assets/app.ico");
+        ApplyTheme();
         SizeAndCenter();
 
         MiniMonth.FirstDayOfWeek = weekStart;
@@ -58,7 +71,15 @@ public sealed partial class MainWindow : Window
                 _services.Sync.OnWindowActivated();
             }
         };
-        _ = Accounts.LoadAsync();
+        services.Sync.Completed += (_, _) => _ = ReloadAsync(periodChanged: false);
+        Accounts.CalendarsChanged += (_, _) => _ = ReloadAsync(periodChanged: false);
+        _ = StartAsync();
+    }
+
+    private async Task StartAsync()
+    {
+        await Accounts.LoadAsync();
+        await ReloadAsync(periodChanged: true);
     }
 
     public ShellViewModel ViewModel { get; }
@@ -105,7 +126,87 @@ public sealed partial class MainWindow : Window
         if (e.PropertyName == nameof(ShellViewModel.Period))
         {
             UpdateControlsFromPeriod();
+            _ = ReloadAsync(periodChanged: true);
         }
+    }
+
+    /// <summary>Loads the current period from the cache and shows it in the matching view.</summary>
+    private async Task ReloadAsync(bool periodChanged)
+    {
+        int version = ++_loadVersion;
+        var period = ViewModel.Period;
+        IReadOnlyList<CalendarItem> items;
+        try
+        {
+            items = await Task.Run(() => _data.LoadAsync(period.GridStart, period.GridEnd));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Loading {Start}..{End} failed", period.GridStart, period.GridEnd);
+            return;
+        }
+
+        if (version != _loadVersion)
+        {
+            return;
+        }
+
+        bool hasAccounts = Accounts.HasAccounts;
+        TimeGrid.Visibility = Show(hasAccounts && period.Kind is CalendarViewKind.Day or CalendarViewKind.Week);
+        MonthGrid.Visibility = Show(hasAccounts && period.Kind == CalendarViewKind.Month);
+        AgendaList.Visibility = Show(hasAccounts && period.Kind == CalendarViewKind.Agenda);
+
+        switch (period.Kind)
+        {
+            case CalendarViewKind.Day:
+            case CalendarViewKind.Week:
+                var days = Enumerable.Range(0, period.GridEnd.DayNumber - period.GridStart.DayNumber)
+                    .Select(i => period.GridStart.AddDays(i)).ToList();
+                TimeGrid.Show(days, items, _settings.WorkdayStartHour, _settings.WorkdayEndHour, scrollToStart: periodChanged);
+                break;
+            case CalendarViewKind.Month:
+                MonthGrid.Show(period.GridStart, period.GridEnd, period.Start.Month, items);
+                break;
+            case CalendarViewKind.Agenda:
+                AgendaList.Show(period.Start, period.End, items);
+                break;
+        }
+
+        static Visibility Show(bool visible) => visible ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void View_ItemClicked(object? sender, ItemClickedEventArgs e)
+    {
+        try
+        {
+            // A flyout created in code needs the window's XamlRoot; ShowAt doesn't infer it in desktop apps.
+            var flyout = new Flyout
+            {
+                Content = new EventDetailsView(e.Item, e.Anchor.ActualTheme, AppServices.OpenInBrowserAsync),
+                XamlRoot = e.Anchor.XamlRoot,
+            };
+            flyout.ShowAt(e.Anchor, new FlyoutShowOptions { Placement = FlyoutPlacementMode.Auto });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Couldn't show the details of {Event}", e.Item.Event.Key.EventId);
+        }
+    }
+
+    private void View_DayClicked(object? sender, DateOnly day) => ViewModel.ShowDay(day);
+
+    /// <summary>Follows Windows' light/dark mode unless settings.json picks one.</summary>
+    private void ApplyTheme()
+    {
+        if (_settings.Theme == AppTheme.System || Content is not FrameworkElement root)
+        {
+            return;
+        }
+
+        bool light = _settings.Theme == AppTheme.Light;
+        root.RequestedTheme = light ? ElementTheme.Light : ElementTheme.Dark;
+        AppWindow.TitleBar.ButtonForegroundColor = light ? Microsoft.UI.Colors.Black : Microsoft.UI.Colors.White;
+        AppWindow.TitleBar.ButtonHoverForegroundColor = AppWindow.TitleBar.ButtonForegroundColor;
     }
 
     private void UpdateControlsFromPeriod()
