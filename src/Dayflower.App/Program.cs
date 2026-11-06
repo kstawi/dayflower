@@ -5,7 +5,9 @@
 using System.Runtime.InteropServices;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Dayflower.Services;
 using Microsoft.Windows.AppLifecycle;
+using Velopack;
 
 namespace Dayflower;
 
@@ -18,10 +20,19 @@ public static partial class Program
     private const string InstanceKey = "Dayflower";
 
     [STAThread]
-    private static int Main()
+    private static int Main(string[] args)
     {
+        // First of all, as the installer requires: when it starts Dayflower to run an install or uninstall step, the
+        // step runs here and the process exits. Dayflower applies downloaded updates itself (below), so that a start
+        // at sign-in stays hidden after an update.
+        VelopackApp.Build()
+            .SetAutoApplyOnStartup(false)
+            .OnAfterInstallFastCallback(_ => InstallerSteps.AfterInstall())
+            .OnBeforeUninstallFastCallback(_ => InstallerSteps.BeforeUninstall())
+            .Run();
+
         WinRT.ComWrappersSupport.InitializeComWrappers();
-        if (RedirectToRunningInstance())
+        if (RedirectToRunningInstance() || UpdateService.ApplyPendingUpdate(args.Contains(StartupService.BackgroundArgument)))
         {
             return 0;
         }

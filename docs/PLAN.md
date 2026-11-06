@@ -5,7 +5,7 @@ video meeting, and raises desktop reminders that match the reminders set in Goog
 like part of Windows 11, starts with Google, and leaves room for Microsoft 365, iCloud, CalDAV and ICS later.
 
 Status: agreed in the planning interview on 2026-11-06. Phases 0–6 (setup, accounts and sync, calendar views,
-Join, reminders with tray and start-up, editing, search and settings) are done; phase 4 was the daily-driver
+Join, reminders and start-up, editing, search and settings) are done; phase 4 was the daily-driver
 milestone. Phase 7 (public release) is next.
 
 ## 1. Decisions
@@ -14,8 +14,8 @@ milestone. Phase 7 (public release) is next.
 |---|---|
 | Stack | WinUI 3 (Windows App SDK) + C# on .NET 10 LTS. Windows-only. |
 | Accounts | Several Google accounts at once: personal Gmail and a Workspace account run by someone else's admin. |
-| Audience | Public release later: Microsoft Store, plus a public GitHub repo. |
-| Background | Tray app. Closing the window hides it; it keeps syncing and reminding. Starts with Windows (switchable in Task Manager). |
+| Audience | Public release: an installer on GitHub, plus the public GitHub repo. |
+| Background | Runs in the background without a tray icon: closing the window hides it, and it keeps syncing and reminding. Reopened from Start; Quit in Settings. Starts with Windows (switchable in Task Manager). |
 | Join links | Google Meet from the event's conference data, plus Zoom, Teams, Webex, Slack huddles, Whereby and similar found in the location or description. Opens in the default browser. |
 | Join placement | Event details flyout (always), on the event in the day/week grid (from shortly before start until the end), and on reminder notifications. |
 | Meet account | Join opens Meet as the Google account the event belongs to. |
@@ -31,8 +31,8 @@ milestone. Phase 7 (public release) is next.
 | Look | Fluent / WinUI controls, Mica, follows light/dark mode and the accent colour, takes week start and 12/24 h from Windows regional settings. |
 | Language | English, with all text in resource files so translations can be added later. |
 | Later providers | Microsoft 365 / Outlook, iCloud, other CalDAV, ICS subscriptions. |
-| Install | MSIX. Microsoft Store as the main channel, plus GitHub Releases and winget. |
-| Name | Dayflower: a flower whose blooms last a single day. Chosen for now; a full trademark check comes before the Store listing. |
+| Install | A `Setup.exe` from GitHub Releases (Velopack): installs per user without admin rights and updates itself. winget once the installer is signed. The Microsoft Store maybe later (decided 2026-11-06; the earlier plan was the Store first). |
+| Name | Dayflower: a flower whose blooms last a single day. Chosen for now; a full trademark check comes before the public release. |
 | Repo | Public, github.com/kstawi/dayflower, set up like brightness-mirror (commits as kstawi, signed with the kstawi SSH key). |
 | Licence | GPL-3.0, as brightness-mirror. |
 | Dev tools | .NET 10 SDK only; no Visual Studio. Build, run and test from the command line. |
@@ -125,15 +125,16 @@ milestone. Phase 7 (public release) is next.
 ### 2.7 World clock
 
 - A "Time zones" section in the side pane, under the mini month: one row per zone with your label, the current time
-  and the difference from your time, with "+1" or "−1" when it's a different day (for example "Team NY 09:14 −6h").
+  and the difference from your time, with "+1" or "âˆ’1" when it's a different day (for example "Team NY 09:14 âˆ’6h").
 - Zones are added from a searchable city / time-zone list, can be renamed and reordered, and follow daylight saving
   automatically.
 
-### 2.8 Tray and background
+### 2.8 Background
 
-- Tray icon with the next event in its tooltip ("Next: Standup in 12 min"). Left-click opens the window; right-click:
-  Open, New event, Sync now, Settings, Quit.
-- Closing the window hides it to the tray. Starts with Windows (Windows' startup-app switch, also in Task Manager).
+- Closing the window hides it; Dayflower keeps running in the background so reminders arrive. Opening it again
+  from Start (or a notification) brings the window back, and Quit in Settings ends it. There is no tray icon (it was
+  dropped after the first UI review as not needed).
+- Starts with Windows (Windows' startup-app switch, also in Task Manager).
 
 ### 2.9 Offline and sync
 
@@ -159,7 +160,7 @@ milestone. Phase 7 (public release) is next.
 ```
 dayflower/
   src/
-    Dayflower.App/               WinUI 3 app: windows, views, view models, tray, notifications, startup
+    Dayflower.App/               WinUI 3 app: windows, views, view models, notifications, startup
     Dayflower.Core/              Provider-neutral model and logic: events, merging, meeting-link detection,
                                 reminder planning, recurrence, time zones. No UI or Google code.
     Dayflower.Storage/           SQLite cache, search index, settings
@@ -181,7 +182,6 @@ dayflower/
 |---|---|
 | UI | Windows App SDK (WinUI 3), CommunityToolkit.WinUI (setting cards, segmented control) |
 | MVVM | CommunityToolkit.Mvvm; services are composed by hand in `AppServices` (no DI container needed yet) |
-| Tray icon | H.NotifyIcon.WinUI 2.4 (WinUI 3 has no built-in tray icon); works with Windows App SDK 2.6 |
 | Google | The Calendar REST API called directly with HttpClient and System.Text.Json, plus Dayflower's own OAuth flow (loopback + PKCE). Chosen over Google's .NET client libraries in phase 1: lighter, and the tests feed Google-shaped JSON into the same code the app runs. |
 | Cache and search | Microsoft.Data.Sqlite with SQLite FTS5 |
 | Recurrence | Ical.Net (RRULE expansion) |
@@ -248,10 +248,11 @@ Done once, in the Google Cloud console under your personal Google account (I'll 
 their trusted list. Phase 1 tests sign-in with that account early. If it's blocked, the fix is for that admin to
 mark the app's client ID as trusted in the Admin console (Security › API controls).
 
-**Verification for the public release (phase 7):** Google reviews apps that use Calendar scopes: a homepage, a
-privacy policy, a verified domain, a short demo video and a reason for each scope. A cheap domain of its own (or a
-verifiable GitHub Pages site) hosts the homepage and privacy policy. Review takes days to weeks, so it starts as soon
-as the app is feature-complete.
+**Verification for the public release (phase 7):** Calendar scopes are sensitive, so Google reviews the app before
+lifting the 100-user cap and the "unverified app" warning. It wants a homepage and privacy policy on a domain you own,
+verified in Google Search Console by a project owner (a `github.io` address most likely won't count, so a cheap domain
+of its own, hosted by GitHub Pages), an unlisted YouTube video showing sign-in and how each scope is used, and a reason
+for each scope. Google quotes 3–5 business days, longer if it comes back with questions, so it starts first.
 
 ## 5. Phases
 
@@ -342,7 +343,7 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
   the full Settings page, keyboard shortcuts, accessibility pass.
 - **Done when:** these work end to end, and a keyboard-only and screen-reader pass finds no blockers.
 - **Result:** search runs over the whole cache (Core `EventSearchIndex`: every word must match the title, location,
-  description, guests or organiser, ignoring case and accents, so "swieta" finds "Święta"); a repeating event shows
+  description, guests or organiser, ignoring case and accents, so "swieta" finds "ÅšwiÄ™ta"); a repeating event shows
   once, at its next occurrence. Typing lists the first matches under the search box; Enter shows all of them,
   upcoming first, then past ones. "Search Google" was dropped: the cache already has everything Google has.
   Invitation notifications (`InvitationWatch` in Core, `InvitationWatcher` in the app) run after each sync on the
@@ -352,7 +353,7 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
   rename, reorder and remove. The Settings page (setting cards, as in Windows Settings) has the default calendar,
   working hours, show declined events, the notification switches, the Join lead time, accounts, theme (applied at
   once), start with Windows, the shortcuts and About; the tray menu gained New event and Settings. Shortcuts:
-  Ctrl+N, Ctrl+F, Ctrl+, F5, Esc, and T, D / W / M / A, Page Up / Down and ← / → when not typing. Accessibility:
+  Ctrl+N, Ctrl+F, Ctrl+, F5, Esc, and T, D / W / M / A, Page Up / Down and â† / â†’ when not typing. Accessibility:
   every keyboard-reachable control in the four views and Settings has a name (checked with UI Automation),
   events are read with their day, time and answer, headings and landmarks are marked, the sync status is a live
   region, and contrast themes draw events in system colours.
@@ -360,11 +361,109 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
   calendar Google marks the colleague as "self").
 - **Not checked live:** an invitation notification needs a new invitation to arrive (the first run correctly
   stayed quiet about the one already waiting), and contrast themes need Windows' contrast setting switched on.
-
+- **After the first UI reviews:** a new icon: a tear-off calendar pad in the layered style of Microsoft's own icons
+  (layers casting soft shadows, navy-to-sky gradients, a curling corner), with a grid of days in the package icon and
+  today's date in large type on the running window's icon, as on a Mac (generated by `tools/MakeAssets.ps1`); no icon or name in the title bar; a wider
+  search box centred on the whole window; caption buttons as tall as the title bar; Settings pinned to the bottom of
+  the side pane; the side pane animating together with the calendar, whose corner squares off when the pane is
+  closed; and no tray icon (Quit is in Settings). The dated window icon (31 pre-drawn, switched at midnight) shows in
+  Alt+Tab and Task View; Windows draws the taskbar, Start and notification icons from the package, so those can't
+  change, and a date on them would be wrong most days. (Giving the window a taskbar identity of its own, as browsers do
+  for web apps, was tried: for a packaged app the button still shows the package logo. A corner badge would work but
+  reads as an unread count.)
 ### Phase 7: Public release (M)
-- MSIX packaging and Store listing (reserve the name in Partner Center early, ideally in phase 0), screenshots,
-  privacy policy and homepage, Google OAuth verification, GitHub Releases and winget.
-- **Done when:** the app is live in the Microsoft Store and installable with winget.
+Anyone can download a `Setup.exe` from GitHub, install Dayflower without admin rights and get updates on their own,
+and you install it the same way. Steps 1 and 6 need only you and can start straight away; the rest is code and CI.
+
+1. **Google verification (you, with texts from me).** Buy a domain; I build a small homepage and put the privacy
+   policy on it, published by GitHub Pages from the repo. You verify the domain in Search Console, record the demo
+   video from a script I write, and submit with the scope reasons I draft.
+2. **Unpackaged build, checked first.** Dayflower built as a self-contained app (the .NET runtime and Windows App SDK
+   included, nothing to install first), then a check of everything that behaves differently without a package:
+   - notifications show Dayflower's name and icon, and their buttons (Join, Snooze, Accept / Maybe / Decline) reach
+     the running app;
+   - a second launch still hands over to the running copy;
+   - start with Windows: a Run entry for the current user instead of the package's startup task, starting hidden
+     with `--background`; Settings reads Windows's own Startup apps switch to show when it's turned off there;
+   - the version comes from the program instead of the package, and assets load from the app's folder;
+   - the cache and saved sign-ins live outside the folder the installer replaces on each update;
+   - whether the taskbar can now show today's date (it couldn't for a package; a pinned button may still keep the
+     shortcut's icon).
+
+   `run.ps1` moves to the unpackaged build, so day-to-day testing matches what ships and Developer Mode is no longer
+   needed. The MSIX build stays buildable for a possible Store listing.
+
+   **Built and checked 2026-11-06** on this PC (Windows 11 build 26300):
+   - Works: the window, a second launch handing over to the running copy, Start with Windows (the Run entry on and
+     off, and a hidden start with `--background`), clicking a notification while Dayflower runs, and today's date on
+     the taskbar button (not pinned).
+   - Windows took a blurry 16-pixel icon from `Dayflower.exe` for notifications, so Dayflower now registers its
+     48-pixel icon instead.
+   - A notification click while Dayflower isn't running starts nothing: COM ignores per-user registrations on this PC,
+     even a throwaway one, and another developer reports the same on build 26200 ([laching#37](https://github.com/vmihalachi/laching/issues/37)).
+     Dayflower is nearly always running, so this only affects clicking an old notification after Quit. Check again on
+     another PC and with Velopack's install.
+   - Pop-up banners couldn't be checked by script here (not even PowerShell's own), so they need a look by eye.
+   - The taskbar date holds only while the window has no Start menu shortcut of its own; see step 3 for the installed
+     copy.
+3. **Installer and updates (Velopack).** Velopack runs first in `Main`. Installing adds a Start menu shortcut only;
+   uninstalling stops Dayflower, removes the start-up entry and the notification registration, and deletes the cache
+   and saved sign-ins, as removing the package did. Updates are checked at start and every few hours and downloaded in
+   the background. Dayflower rarely closes, so an update applies at the next start (usually signing in to Windows) or
+   at once from a "Restart to update" button in Settings.
+
+   **Built and checked 2026-11-06** with test installs under their own app IDs (`tools\Pack.ps1 -PackId
+   DayflowerTest`), which keep their own install folder, data, start-up entry and shortcut, so your real copy was
+   never touched:
+   - Velopack installs to `%LocalAppData%\Dayflower` and deletes that whole folder on uninstall, so the data moved to
+     `%AppData%\Dayflower` (the usual place for Velopack and Squirrel apps), and the uninstall step deletes it.
+   - Install: per user, no admin rights; a Start menu shortcut, Start with Windows on, an entry in Windows' Apps list.
+   - Updates, all three ways: "Restart to update" (0.7.0 → 0.7.1, a 0.6 MB delta), a hidden start at sign-in with an
+     update downloaded earlier (stays hidden), and Quit with one downloaded (applied after exit). Settings shows the
+     state; `DAYFLOWER_UPDATE_SOURCE` points a copy at a local folder of packages for testing.
+   - Uninstall removes everything: the program, data, start-up entry, shortcut, notification registration and Apps
+     list entry, also while Dayflower runs in the background (Velopack doesn't stop it, so the uninstall step does).
+   - The taskbar drew a generic icon for the installed copy: it reads the shortcut's icon from `Dayflower.exe` and
+     can't use the PNG-compressed small sizes `MakeAssets.ps1` wrote. Sizes below 256 px are now classic bitmaps.
+   - Today's date on the taskbar (`TaskbarDate`). Windows 11 draws the button from the Start menu shortcut that
+     shares the window's taskbar identity, not from the window's icon; the date showed earlier only because the
+     program icon was unreadable and the taskbar fell back to the window's. So the installed copy points its Start menu
+     shortcut (and pinned copies) at today's icon, which also dates the Start menu entry, and when the date changes
+     with the window open it briefly switches the window's identity so the taskbar redraws the button. A development
+     build gets an identity no shortcut carries, so the taskbar shows its window's icon. Checked with test installs;
+     the midnight redraw and a pinned button only with stand-in windows so far.
+   - The taskbar can't read icons in a folder created directly under AppData since Windows started (a blank page
+     instead), which includes the installed copy's own folder, while older folders and Temp are fine (Windows 11 build
+     26300). So today's icon is copied to `%TEMP%\Dayflower` and put back if a cleanup removes it. Without that, even
+     the plain program icon would be blank on the taskbar until the next sign-in after installing.
+   - The installer is about 105 MB and a full update about 98 MB (the .NET runtime and Windows App SDK included);
+     ordinary updates are deltas of under a megabyte.
+4. **Release workflow.** Pushing a version tag (`v0.7.0`) runs the tests, builds x64 and ARM64 with the OAuth client
+   from Actions secrets, packs `Setup.exe` plus full and delta update packages, and publishes a GitHub Release with
+   notes. The tag sets the version number.
+
+   **Written 2026-11-06** (`.github/workflows/release.yml`, notes from `CHANGELOG.md`, `v…-beta.N` tags make
+   pre-releases that installed copies ignore). Checked locally: the notes step, fetching the previous release (none
+   yet, which it handles), and packing both x64 and ARM64 on an x64 PC (the ARM64 program really is ARM64). Not run
+   on GitHub yet: it needs the two OAuth secrets and a pushed tag.
+5. **Ready for other people.**
+   - An About section in Settings: version, privacy policy, "Report a problem" (GitHub Issues) and "Open logs folder".
+   - The README covers installing, what the SmartScreen warning means and why it's there, and that a work Google
+     account may need its admin's approval.
+   - Checked live: an invitation notification end to end, high contrast, and a first run on a Windows account that
+     has never had Dayflower.
+   - Moving your own copy over: done on 2026-11-06 (the development package uninstalled, its data copied to
+     `%AppData%\Dayflower`); installing the first release over it keeps that data.
+6. **Signing (you apply, I wire it in).** Apply to SignPath Foundation once the release workflow exists (they sign
+   files built by GitHub-hosted CI from a public repo, and everyone on the project needs two-factor sign-in on GitHub
+   and SignPath). Then CI signs Dayflower's own files before packing and `Setup.exe` after. A paid certificate is the
+   fallback if SignPath says no.
+7. **winget.** Once signed: a manifest in winget-pkgs (installer type exe, silent install), updated by the release
+   workflow on each release.
+
+- **Done when:** a version tag produces a release on GitHub; a PC that never had Dayflower installs it without admin
+  rights and updates itself to the next release; Google has verified the app; and, once SignPath has approved it, the
+  installer is signed and installable with winget.
 
 ### Later
 - Providers, suggested order: Microsoft 365 / Outlook, ICS subscriptions, iCloud, then other CalDAV (iCloud and
@@ -384,12 +483,16 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
 
 ## 7. Release and distribution
 
-- **Microsoft Store:** primary channel. The Store signs the package for free and handles updates. Needs a Partner
-  Center developer account (check the current fee for individual developers).
-- **winget:** can install straight from the Store listing.
-- **GitHub Releases:** a downloadable MSIX must be code-signed, otherwise Windows won't install it without the
-  user trusting a certificate by hand. Options: SignPath Foundation (free signing for open-source projects, by
-  application) or a paid certificate. Decided in phase 7; until then GitHub Releases link to the Store.
+- **GitHub Releases:** the main channel. A Velopack `Setup.exe` that installs per user in `%LocalAppData%` without
+  admin rights, and updates that download only what changed. An `.exe` installs unsigned, unlike an MSIX, which
+  Windows refuses unless the user trusts its certificate by hand.
+- **Signing:** until it's signed, SmartScreen shows "Windows protected your PC" (More info › Run anyway) and Smart App
+  Control, where it's on, blocks the app outright. SignPath Foundation signs open-source projects for free, by
+  application. Azure Artifact Signing only takes individual developers in the USA and Canada, so it's out. A paid
+  certificate (a few hundred euros a year) is the fallback.
+- **winget:** once the installer is signed.
+- **Microsoft Store:** maybe later. Registration has been free for individual developers since September 2025, and
+  the Store would sign and update the MSIX build. Not needed for the first release.
 
 ## 8. Risks
 
@@ -401,17 +504,19 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
 | Google verification takes weeks or asks for changes | Narrow scopes from the start; begin as soon as features are complete. |
 | Reminder timing across sleep, restarts and DST | Scheduler logic is pure and unit-tested; manual sleep/restart checks in phase 4. |
 | Google's API can't propose a new meeting time | Out of scope; "Open in Google Calendar" link in the flyout for that. |
+| Windows features behave differently without a package (notifications, start-up) | Checked first in phase 7, before the installer work. |
+| An unsigned installer puts people off, and Smart App Control blocks it | The README and homepage explain the warning; apply to SignPath as soon as the release workflow exists; a paid certificate if refused. |
 
 ## 9. Not in v1
 
 Natural-language quick add, Google Tasks, extra time-zone columns in the grid, a global join hotkey, auto-join at
-start, Join in the tray menu, a Windows Widgets board widget, work-week / 3-day / year views, offline editing,
+start, a Windows Widgets board widget, work-week / 3-day / year views, offline editing,
 uploading attachments, contact autocomplete from Google Contacts, other providers, translations.
 
 ## 10. Still open
 
 1. **Name check.** "Dayflower" turned up no app of that name in the Microsoft Store or on the web; the nearest
    are several "DayFlow" planner apps on iOS. Trademarks were only partly checked (US records via third-party
-   mirrors). Before the Store listing: search EUIPO, USPTO and the Polish patent office (software classes 9 and 42),
-   and reserve the name in Partner Center.
-2. **GitHub download signing** (SignPath Foundation or a paid certificate), decided in phase 7.
+   mirrors). Before the public release: search EUIPO, USPTO and the Polish patent office (software classes 9 and 42).
+   The domain and homepage carry the name, so this comes before buying the domain.
+2. **Signing:** SignPath Foundation's answer (phase 7); a paid certificate if they say no.

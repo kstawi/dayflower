@@ -21,6 +21,7 @@ public sealed record ReminderToast(string Id, string Title, string When, string?
 public sealed class NotificationService(ILogger<NotificationService> logger)
 {
     private const string ReminderGroup = "reminders";
+    private const string NotificationIcon = "Square44x44Logo.targetsize-48_altform-unplated.png";
     private bool _registered;
 
     /// <summary>Raised (on a background thread) when the user acts on a notification while Dayflower is running.</summary>
@@ -35,7 +36,17 @@ public sealed class NotificationService(ILogger<NotificationService> logger)
         }
 
         AppNotificationManager.Default.NotificationInvoked += (_, args) => ActionInvoked?.Invoke(this, Parse(args));
-        AppNotificationManager.Default.Register();
+        if (AppIdentity.IsPackaged)
+        {
+            // The name and icon come from the package manifest.
+            AppNotificationManager.Default.Register();
+        }
+        else
+        {
+            // Left to itself, Windows would take the 16-pixel icon from Dayflower.exe and scale it up, blurred.
+            AppNotificationManager.Default.Register("Dayflower", new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", NotificationIcon)));
+        }
+
         _registered = true;
     }
 

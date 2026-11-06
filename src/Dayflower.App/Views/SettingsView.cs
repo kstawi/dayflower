@@ -43,12 +43,16 @@ public sealed partial class SettingsView : UserControl
     private readonly ComboBox _defaultCalendar = new() { MinWidth = 240 };
     private readonly ToggleSwitch _startup = new();
     private readonly TextBlock _startupNote = Description(string.Empty);
+    private readonly UpdateService _updates;
+    private readonly TextBlock _updateText = Description(string.Empty);
+    private readonly Button _updateButton = new();
 
-    public SettingsView(AppSettings settings, AccountsViewModel accounts, EventActions actions)
+    public SettingsView(AppSettings settings, AccountsViewModel accounts, EventActions actions, UpdateService updates)
     {
         _settings = settings;
         _accounts = accounts;
         _actions = actions;
+        _updates = updates;
 
         var back = new Button
         {
@@ -84,11 +88,19 @@ public sealed partial class SettingsView : UserControl
 
         Loaded += async (_, _) => await LoadAsync();
         accounts.Accounts.CollectionChanged += OnAccountsChanged;
-        Unloaded += (_, _) => accounts.Accounts.CollectionChanged -= OnAccountsChanged;
+        updates.Changed += OnUpdatesChanged;
+        Unloaded += (_, _) =>
+        {
+            accounts.Accounts.CollectionChanged -= OnAccountsChanged;
+            updates.Changed -= OnUpdatesChanged;
+        };
     }
 
     /// <summary>Raised when the user goes back to the calendar.</summary>
     public event EventHandler? CloseRequested;
+
+    /// <summary>Raised when the user chooses Quit.</summary>
+    public event EventHandler? QuitRequested;
 
     // ---- Sections --------------------------------------------------------------------------------------------
 
@@ -190,7 +202,12 @@ public sealed partial class SettingsView : UserControl
     {
         Section(page, "General");
         _startup.Toggled += async (_, _) => await SetStartupAsync(_startup.IsOn);
-        page.Children.Add(Card("", "Start with Windows", "Dayflower starts in the notification area when you sign in, so reminders arrive.", _startup, _startupNote));
+        page.Children.Add(Card("", "Start with Windows", "Dayflower starts in the background when you sign in, so reminders arrive.", _startup, _startupNote));
+
+        var quit = new Button { Content = "Quit" };
+        quit.Click += (_, _) => QuitRequested?.Invoke(this, EventArgs.Empty);
+        AutomationProperties.SetName(quit, "Quit Dayflower");
+        page.Children.Add(Card("", "Quit Dayflower", "Closing the window keeps Dayflower running in the background for reminders. Quit stops it until you open it again.", quit));
 
         var keys = new Grid { ColumnSpacing = 24, RowSpacing = 6, Margin = new Thickness(0, 10, 0, 4) };
         keys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -213,6 +230,20 @@ public sealed partial class SettingsView : UserControl
     private void BuildAbout(StackPanel page)
     {
         Section(page, "About");
+        _updateButton.Click += async (_, _) =>
+        {
+            if (_updates.Status == UpdateStatus.Ready)
+            {
+                _updates.RestartToUpdate();
+            }
+            else
+            {
+                await _updates.CheckAsync();
+            }
+        };
+        page.Children.Add(Card("", "Updates", _updateText, _updateButton));
+        ShowUpdateStatus();
+
         var links = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4 };
         links.Children.Add(Link("Source code", "https://github.com/kstawi/dayflower"));
         links.Children.Add(Link("Privacy", "https://github.com/kstawi/dayflower/blob/main/PRIVACY.md"));
@@ -221,6 +252,28 @@ public sealed partial class SettingsView : UserControl
         logs.Click += async (_, _) => await Windows.System.Launcher.LaunchFolderPathAsync(AppPaths.LogsFolder);
         links.Children.Add(logs);
         page.Children.Add(Card("", "Dayflower", $"Version {Version()} · Free software under the GNU GPL 3.0. Your events stay between this PC and Google.", null, links));
+    }
+
+    // ---- Updates ---------------------------------------------------------------------------------------------
+
+    private void OnUpdatesChanged(object? sender, EventArgs e) => ShowUpdateStatus();
+
+    private void ShowUpdateStatus()
+    {
+        string checkedAt = _updates.LastChecked is { } at ? $" Checked at {TimeText.Time(at.LocalDateTime)}." : string.Empty;
+        _updateText.Text = _updates.Status switch
+        {
+            UpdateStatus.NotAvailable => "Updates come with the installed version of Dayflower.",
+            UpdateStatus.Checking => "Checking for updates…",
+            UpdateStatus.Downloading => "Downloading an update…",
+            UpdateStatus.Ready => $"Version {_updates.ReadyVersion} is ready. It's installed the next time Dayflower starts, or restart now.",
+            UpdateStatus.Failed => "Couldn't check for updates. Dayflower tries again later." + checkedAt,
+            _ => "Dayflower is up to date. It checks for updates by itself." + checkedAt,
+        };
+        _updateButton.Content = _updates.Status == UpdateStatus.Ready ? "Restart to update" : "Check now";
+        _updateButton.Visibility = _updates.Status == UpdateStatus.NotAvailable ? Visibility.Collapsed : Visibility.Visible;
+        _updateButton.IsEnabled = _updates.Status is not (UpdateStatus.Checking or UpdateStatus.Downloading);
+        AutomationProperties.SetName(_updateButton, _updates.Status == UpdateStatus.Ready ? "Restart to update" : "Check for updates");
     }
 
     // ---- Accounts --------------------------------------------------------------------------------------------
@@ -271,7 +324,7 @@ public sealed partial class SettingsView : UserControl
         {
             StartupTaskState.DisabledByUser => "Turned off in Task Manager or Windows Settings (Apps > Startup). Turn it on there.",
             StartupTaskState.DisabledByPolicy or StartupTaskState.EnabledByPolicy => "Set by your organisation.",
-            null => "Available when Dayflower is installed.",
+            null => "Dayflower couldn't read this setting.",
             _ => string.Empty,
         };
         _startupNote.Visibility = _startupNote.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -309,7 +362,10 @@ public sealed partial class SettingsView : UserControl
     }
 
     /// <summary>A setting card: icon, title and description on the left, the control on the right, details below.</summary>
-    private static Border Card(string glyph, string header, string description, FrameworkElement? control, UIElement? below = null)
+    private static Border Card(string glyph, string header, string description, FrameworkElement? control, UIElement? below = null) =>
+        Card(glyph, header, Description(description), control, below);
+
+    private static Border Card(string glyph, string header, TextBlock description, FrameworkElement? control, UIElement? below = null)
     {
         var grid = new Grid { ColumnSpacing = 16 };
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
@@ -321,7 +377,7 @@ public sealed partial class SettingsView : UserControl
         grid.Children.Add(new FontIcon { Glyph = glyph, FontSize = 20, VerticalAlignment = VerticalAlignment.Center });
         var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(new TextBlock { Text = header, TextWrapping = TextWrapping.Wrap });
-        text.Children.Add(Description(description));
+        text.Children.Add(description);
         Grid.SetColumn(text, 1);
         grid.Children.Add(text);
 
@@ -381,14 +437,12 @@ public sealed partial class SettingsView : UserControl
 
     private static string Version()
     {
-        try
+        if (AppIdentity.IsPackaged)
         {
             var v = Package.Current.Id.Version;
             return string.Create(CultureInfo.InvariantCulture, $"{v.Major}.{v.Minor}.{v.Build}");
         }
-        catch (InvalidOperationException)
-        {
-            return typeof(SettingsView).Assembly.GetName().Version?.ToString(3) ?? "?";
-        }
+
+        return typeof(SettingsView).Assembly.GetName().Version?.ToString(3) ?? "?";
     }
 }

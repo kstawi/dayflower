@@ -69,8 +69,19 @@ then **Go to Dayflower**. That's expected, and there's a limit of 100 users unti
 1. In the repo folder, copy `google-oauth.local.props.example` to `google-oauth.local.props`.
 2. Put the client ID and secret in it.
 
-Git ignores `google-oauth.local.props`, so the values stay on your PC and never reach the public repo. You don't
-need to paste them anywhere else.
+Git ignores `google-oauth.local.props`, so the values stay on your PC and never reach the public repo.
+
+## 7. Give the client to release builds
+
+The release workflow (`.github/workflows/release.yml`) builds the installer on GitHub, so it needs the same two
+values as repository secrets. Each command asks for the value; paste it there, not on the command line:
+
+```powershell
+gh secret set GOOGLE_OAUTH_CLIENT_ID --repo kstawi/dayflower
+gh secret set GOOGLE_OAUTH_CLIENT_SECRET --repo kstawi/dayflower
+```
+
+A release fails straight away if either is missing, rather than shipping a Dayflower that can't sign in.
 
 ## Work accounts
 

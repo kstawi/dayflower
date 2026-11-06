@@ -65,8 +65,8 @@ public sealed class AppSettings
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
-    /// <summary>Whether the "still running in the tray" notice has been shown once.</summary>
-    public bool TrayNoticeShown { get; set; }
+    /// <summary>Whether the "still running in the background" notice has been shown once.</summary>
+    public bool BackgroundNoticeShown { get; set; }
 
     private static string FilePath => Path.Combine(AppPaths.DataFolder, "settings.json");
 

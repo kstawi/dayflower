@@ -587,12 +587,18 @@ string? Option(string name)
     return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
 }
 
+// The plain program's data folder (%AppData%\Dayflower), else the MSIX package's.
 static string? FindAppDataFolder()
 {
-    string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-    string packages = Path.Combine(local, "Packages");
+    string plain = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Dayflower");
+    if (File.Exists(Path.Combine(plain, "dayflower.db")))
+    {
+        return plain;
+    }
+
+    string packages = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages");
     var packaged = Directory.Exists(packages)
         ? Directory.GetDirectories(packages, "kstawi.Dayflower_*").Select(d => Path.Combine(d, "LocalState")).FirstOrDefault(Directory.Exists)
         : null;
-    return packaged ?? Path.Combine(local, "Dayflower");
+    return packaged ?? plain;
 }

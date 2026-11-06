@@ -18,20 +18,22 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <!-- No icon or name: the pane button and a centred search box, with room around it to drag the window. -->
         <TitleBar
             x:Name="AppTitleBar"
-            Title="Dayflower"
             IsPaneToggleButtonVisible="True"
             PaneToggleRequested="AppTitleBar_PaneToggleRequested">
-            <TitleBar.IconSource>
-                <ImageIconSource ImageSource="ms-appx:///Assets/TitleBarIcon.png" />
-            </TitleBar.IconSource>
+            <TitleBar.Resources>
+                <!-- The content area spans the bar; the window places the search box centred on the whole window. -->
+                <HorizontalAlignment x:Key="TitleBarContentHorizontalAlignment">Stretch</HorizontalAlignment>
+            </TitleBar.Resources>
             <TitleBar.Content>
                 <AutoSuggestBox
                     x:Name="SearchBox"
-                    MinWidth="280"
-                    MaxWidth="520"
-                    HorizontalAlignment="Stretch"
+                    Loaded="SearchBox_Loaded"
+                    Width="440"
+                    Margin="4,0,0,0"
+                    HorizontalAlignment="Left"
                     VerticalAlignment="Center"
                     AutomationProperties.LandmarkType="Search"
                     AutomationProperties.Name="Search events"
@@ -64,20 +66,31 @@
             </TitleBar.Content>
         </TitleBar>
 
-        <SplitView
-            x:Name="SidePane"
-            Grid.Row="1"
-            DisplayMode="Inline"
-            IsPaneOpen="True"
-            OpenPaneLength="312"
-            PaneBackground="Transparent">
+        <!-- The side pane and the content. Opening and closing animate the pane's column, so the content resizes together
+             with the pane instead of jumping to its final width first. -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="PaneColumn" Width="312" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-            <SplitView.Pane>
+            <!-- Sync status and Settings stay at the bottom; everything above scrolls when there are many calendars. -->
+            <Grid
+                x:Name="SidePane"
+                Width="312"
+                HorizontalAlignment="Right"
+                AutomationProperties.LandmarkType="Navigation"
+                AutomationProperties.Name="Side pane">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
                 <ScrollViewer
-                    AutomationProperties.LandmarkType="Navigation"
-                    AutomationProperties.Name="Side pane"
+                    x:Name="PaneScroller"
+                    SizeChanged="PaneScroller_SizeChanged"
                     VerticalScrollBarVisibility="Auto">
-                    <StackPanel Padding="8,0,8,16" Spacing="24">
+                    <StackPanel Padding="8,0,8,16" SizeChanged="PaneScroller_SizeChanged" Spacing="24">
                         <CalendarView
                             x:Name="MiniMonth"
                             Width="296"
@@ -225,32 +238,39 @@
                             </ItemsControl>
                         </StackPanel>
 
-                        <StackPanel Spacing="4">
-                            <TextBlock
-                                x:Name="SyncStatusText"
-                                AutomationProperties.LiveSetting="Polite"
-                                Style="{StaticResource PaneHintTextStyle}"
-                                Text="{x:Bind Accounts.SyncStatus, Mode=OneWay}" />
-                            <Button
-                                x:Name="SettingsButton"
-                                AutomationProperties.Name="Settings"
-                                Margin="-4,4,0,0"
-                                Click="SettingsButton_Click"
-                                Style="{StaticResource SubtleIconButtonStyle}"
-                                ToolTipService.ToolTip="Settings (Ctrl+,)">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <FontIcon FontSize="16" Glyph="&#xE713;" />
-                                    <TextBlock Text="Settings" />
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
-            </SplitView.Pane>
+
+                <StackPanel
+                    x:Name="PaneFooter"
+                    Grid.Row="1"
+                    Padding="8,8,8,12"
+                    BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                    Spacing="4">
+                    <TextBlock
+                        x:Name="SyncStatusText"
+                        AutomationProperties.LiveSetting="Polite"
+                        Style="{StaticResource PaneHintTextStyle}"
+                        Text="{x:Bind Accounts.SyncStatus, Mode=OneWay}" />
+                    <Button
+                        x:Name="SettingsButton"
+                        Margin="-4,0,0,0"
+                        AutomationProperties.Name="Settings"
+                        Click="SettingsButton_Click"
+                        Style="{StaticResource SubtleIconButtonStyle}"
+                        ToolTipService.ToolTip="Settings (Ctrl+,)">
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <FontIcon FontSize="16" Glyph="&#xE713;" />
+                            <TextBlock Text="Settings" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
 
             <!-- The content area sits on a layer above Mica, like the content of Windows Settings. -->
             <Grid
                 x:Name="ContentArea"
+                Grid.Column="1"
                 AutomationProperties.LandmarkType="Main"
                 AutomationProperties.Name="Calendar"
                 Background="{ThemeResource LayerFillColorDefaultBrush}"
@@ -434,6 +454,6 @@
 
                 <Grid x:Name="SettingsHost" Visibility="Collapsed" />
             </Grid>
-        </SplitView>
+        </Grid>
     </Grid>
 </Window>

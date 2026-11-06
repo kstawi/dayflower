@@ -18,6 +18,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.Graphics;
 using Windows.System;
 using Windows.System.UserProfile;
@@ -75,7 +76,15 @@ public sealed partial class MainWindow : Window
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
-        AppWindow.SetIcon("Assets/app.ico");
+
+        // Tall caption buttons (48 px) line up with the pane button and the search box.
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        AppTitleBar.SizeChanged += (_, _) => CenterSearchBox();
+        ShowTodayIcon();
+        _iconClock = DispatcherQueue.CreateTimer();
+        _iconClock.Interval = TimeSpan.FromMinutes(1);
+        _iconClock.Tick += (_, _) => ShowTodayIcon();
+        _iconClock.Start();
         ApplyTheme();
         SizeAndCenter();
 
@@ -99,21 +108,24 @@ public sealed partial class MainWindow : Window
         _actions.WorkingChanged += (_, working) => SavingBar.Visibility = working ? Visibility.Visible : Visibility.Collapsed;
         TimeGrid.CanMove = item => item.EditableCopy is not null;
 
-        // Closing the window hides it; Dayflower keeps running in the notification area to remind about events.
+        // Closing the window hides it; Dayflower keeps running in the background to remind about events.
         AppWindow.Closing += (_, args) =>
         {
             if (!_closingForGood)
             {
                 args.Cancel = true;
                 AppWindow.Hide();
-                HiddenToTray?.Invoke(this, EventArgs.Empty);
+                HiddenToBackground?.Invoke(this, EventArgs.Empty);
             }
         };
         _ = StartAsync();
     }
 
-    /// <summary>Raised when closing the window hid it to the notification area.</summary>
-    public event EventHandler? HiddenToTray;
+    /// <summary>Raised when closing the window hid it; Dayflower keeps running in the background.</summary>
+    public event EventHandler? HiddenToBackground;
+
+    /// <summary>Raised when the user chooses Quit in Settings.</summary>
+    public event EventHandler? QuitRequested;
 
     /// <summary>Shows the window (from the tray, a notification or a second launch) and brings it to the front.</summary>
     public void ShowWindow()
@@ -331,8 +343,9 @@ public sealed partial class MainWindow : Window
             return;
         }
 
-        var page = new SettingsView(_settings, Accounts, _actions);
+        var page = new SettingsView(_settings, Accounts, _actions, _services.Updates);
         page.CloseRequested += (_, _) => CloseSettings();
+        page.QuitRequested += (_, _) => QuitRequested?.Invoke(this, EventArgs.Empty);
         SettingsHost.Children.Add(page);
         SettingsHost.Visibility = Visibility.Visible;
         CalendarContent.Visibility = Visibility.Collapsed;
@@ -655,9 +668,140 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void AppTitleBar_PaneToggleRequested(TitleBar sender, object args)
+    /// <summary>A line above Settings when the pane's content scrolls behind it, as in Windows' navigation panes.</summary>
+    private void PaneScroller_SizeChanged(object sender, SizeChangedEventArgs e) =>
+        PaneFooter.BorderThickness = PaneScroller.ScrollableHeight > 0 ? new Thickness(0, 1, 0, 0) : new Thickness(0);
+
+    private const double PaneWidth = 312;
+    private static readonly Windows.UI.ViewManagement.UISettings SystemSettings = new();
+    private bool _paneOpen = true;
+    private EventHandler<object>? _paneAnimation;
+
+    private void AppTitleBar_PaneToggleRequested(TitleBar sender, object args) => SetPaneOpen(!_paneOpen);
+
+    /// <summary>
+    /// Opens or closes the side pane. The pane's column grows or shrinks a little on every frame, so the calendar
+    /// resizes together with the pane rather than jumping to its final width while the pane is still moving. The
+    /// pane keeps its width and is anchored to the right of its column, so it slides in from the window's edge.
+    /// With Windows' animation effects off, it opens and closes at once.
+    /// </summary>
+    private void SetPaneOpen(bool open)
     {
-        SidePane.IsPaneOpen = !SidePane.IsPaneOpen;
+        _paneOpen = open;
+        if (_paneAnimation is not null)
+        {
+            Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= _paneAnimation;
+            _paneAnimation = null;
+        }
+
+        double from = PaneColumn.Width.Value, to = open ? PaneWidth : 0;
+        SidePane.Visibility = Visibility.Visible;
+        if (!SystemSettings.AnimationsEnabled || from == to)
+        {
+            Finish();
+            return;
+        }
+
+        // Windows' standard motion: a quick ease-out, a little shorter when closing.
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        double duration = open ? 250 : 200;
+        _paneAnimation = (_, _) =>
+        {
+            double t = Math.Min(1, clock.Elapsed.TotalMilliseconds / duration);
+            double eased = 1 - Math.Pow(1 - t, 3);
+            SetPaneWidth(from + (to - from) * eased);
+            if (t >= 1)
+            {
+                Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= _paneAnimation;
+                _paneAnimation = null;
+                Finish();
+            }
+        };
+        Microsoft.UI.Xaml.Media.CompositionTarget.Rendering += _paneAnimation;
+
+        void Finish()
+        {
+            SetPaneWidth(to);
+            SidePane.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
+    /// <summary>
+    /// Sets how much of the pane shows. The calendar's rounded top-left corner and left edge belong next to the pane,
+    /// so they fade out with it and the calendar sits square against the window edge when the pane is closed.
+    /// </summary>
+    private void SetPaneWidth(double width)
+    {
+        PaneColumn.Width = new GridLength(width);
+        double shown = Math.Clamp(width / PaneWidth, 0, 1);
+        ContentArea.CornerRadius = new CornerRadius(8 * shown, 0, 0, 0);
+        ContentArea.BorderThickness = new Thickness(width > 0.5 ? 1 : 0, 1, 0, 0);
+    }
+
+    // ---- Window icon ----------------------------------------------------------------------------------------
+
+    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _iconClock;
+    private int _iconDay;
+
+    /// <summary>
+    /// Shows today's date on the window's icon (Alt+Tab and Task View) and on its taskbar button (see
+    /// <see cref="TaskbarDate"/>), like the Calendar icon on a Mac. Checked every minute, so it changes at midnight and
+    /// after sleep. Notifications show the plain logo.
+    /// </summary>
+    private async void ShowTodayIcon()
+    {
+        int day = DateTime.Now.Day;
+        string icon = Path.Combine(AppContext.BaseDirectory, "Assets", "Days", $"day-{day}.ico");
+        if (day == _iconDay)
+        {
+            if (AppIdentity.InstalledAppId is not null)
+            {
+                TaskbarDate.ReadableCopy(icon); // put back if a Temp cleanup removed it
+            }
+
+            return;
+        }
+
+        bool redraw = _iconDay != 0 && AppWindow.IsVisible;
+        try
+        {
+            AppWindow.SetIcon(icon);
+            _iconDay = day;
+            await TaskbarDate.ShowAsync(WinRT.Interop.WindowNative.GetWindowHandle(this), icon, redraw);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Couldn't show today's icon");
+            AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
+        }
+    }
+
+    // ---- Title bar -------------------------------------------------------------------------------------------
+
+    private const double SearchBoxMaxWidth = 440;
+
+    /// <summary>
+    /// Centres the search box on the whole window rather than on the space between the pane button and the window
+    /// buttons. It stays inside the title bar's content area (so the title bar keeps it clickable instead of making
+    /// it part of the drag area), offset by however far that area is from the window's centre.
+    /// </summary>
+    private void SearchBox_Loaded(object sender, RoutedEventArgs e) => CenterSearchBox();
+
+    private void CenterSearchBox()
+    {
+        if (VisualTreeHelper.GetParent(SearchBox) is not FrameworkElement host || host.ActualWidth <= 0
+            || Content is not FrameworkElement root)
+        {
+            return;
+        }
+
+        const double gap = 4;
+        double hostLeft = host.TransformToVisual(root).TransformPoint(new Windows.Foundation.Point(0, 0)).X;
+        double width = Math.Max(0, Math.Min(SearchBoxMaxWidth, host.ActualWidth - 2 * gap));
+        double left = (root.ActualWidth - width) / 2 - hostLeft;
+        left = Math.Clamp(left, gap, Math.Max(gap, host.ActualWidth - width - gap));
+        SearchBox.Width = width;
+        SearchBox.Margin = new Thickness(left, 0, 0, 0);
     }
 
     private void MiniMonth_SelectedDatesChanged(CalendarView sender, CalendarViewSelectedDatesChangedEventArgs args)

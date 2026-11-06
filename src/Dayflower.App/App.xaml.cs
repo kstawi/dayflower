@@ -13,15 +13,14 @@ using Microsoft.Windows.AppNotifications;
 namespace Dayflower;
 
 /// <summary>
-/// Dayflower keeps running in the notification area: closing the window hides it, reminders keep coming, and Quit
-/// in the tray menu ends it. Started by Windows at sign-in it starts hidden.
+/// Dayflower keeps running in the background: closing the window hides it and reminders keep coming; opening it from
+/// Start brings the window back, and Quit in Settings ends it. Started by Windows at sign-in it starts hidden.
 /// </summary>
 public partial class App : Application
 {
     private AppServices? _services;
     private AppSettings? _settings;
     private MainWindow? _window;
-    private TrayService? _tray;
     private NotificationService? _notifications;
     private ReminderScheduler? _reminders;
     private InvitationWatcher? _invitations;
@@ -48,38 +47,21 @@ public partial class App : Application
 
         var join = new JoinService(_services.Loggers.CreateLogger<JoinService>());
         _reminders = new ReminderScheduler(_services, _settings, _notifications, join, _ui);
-        _reminders.Ticked += (_, _) => UpdateTrayToolTip();
 
         var edits = new EventEditService(_services);
         _invitations = new InvitationWatcher(_services, _settings, _notifications, edits, _services.Loggers.CreateLogger<InvitationWatcher>());
         _settings.Changed += async (_, _) => await _reminders.ReplanAsync();
 
         _window = new MainWindow(_services, _settings, join, edits);
-        _window.HiddenToTray += (_, _) => ShowTrayNoticeOnce();
+        _window.HiddenToBackground += (_, _) => ShowBackgroundNoticeOnce();
+        _window.QuitRequested += (_, _) => Quit();
         _window.Accounts.CalendarsChanged += async (_, _) => await _reminders.ReplanAsync();
-
-        _tray = new TrayService(_services.Loggers.CreateLogger<TrayService>());
-        _tray.OpenRequested += (_, _) => _window.ShowWindow();
-        _tray.SyncRequested += async (_, _) => await _services.Sync.SyncNowAsync();
-        _tray.NewEventRequested += (_, _) =>
-        {
-            _window.ShowWindow();
-            _window.NewEvent();
-        };
-        _tray.SettingsRequested += (_, _) =>
-        {
-            _window.ShowWindow();
-            _window.OpenSettings();
-        };
-        _tray.QuitRequested += (_, _) => Quit();
-        _tray.StartupBlocked += (_, text) => _notifications.ShowNotice("Start with Windows", text);
 
         // A second launch (Start menu, startup task, notification) is redirected here by Program.Main.
         AppInstance.GetCurrent().Activated += (_, e) => _ui.TryEnqueue(() => OnActivated(e));
 
         var activation = AppInstance.GetCurrent().GetActivatedEventArgs();
-        bool startedByWindows = activation.Kind == ExtendedActivationKind.StartupTask;
-        if (!startedByWindows)
+        if (!StartedByWindows(activation))
         {
             _window.ShowWindow();
         }
@@ -105,11 +87,21 @@ public partial class App : Application
         {
             await HandleNotificationAsync(NotificationService.Parse(notification));
         }
-        else if (e.Kind != ExtendedActivationKind.StartupTask)
+        else if (!StartedByWindows(e))
         {
             _window?.ShowWindow();
         }
     }
+
+    /// <summary>
+    /// Started at sign-in: by the package's startup task, or (as a plain program) by the Run entry, which passes
+    /// <see cref="StartupService.BackgroundArgument"/>.
+    /// </summary>
+    private static bool StartedByWindows(AppActivationArguments activation) =>
+        activation.Kind == ExtendedActivationKind.StartupTask
+        || (activation.Kind == ExtendedActivationKind.Launch
+            && activation.Data is Windows.ApplicationModel.Activation.ILaunchActivatedEventArgs launch
+            && launch.Arguments.Split(' ', StringSplitOptions.RemoveEmptyEntries).Contains(StartupService.BackgroundArgument));
 
     private async Task HandleNotificationAsync(NotificationAction action)
     {
@@ -141,43 +133,22 @@ public partial class App : Application
         }
     }
 
-    private void UpdateTrayToolTip()
+    private void ShowBackgroundNoticeOnce()
     {
-        if (_tray is null || _reminders is null)
+        if (_settings is { BackgroundNoticeShown: false })
         {
-            return;
-        }
-
-        var next = _reminders.NextEvent;
-        if (next is null)
-        {
-            _tray.SetToolTip("Dayflower");
-            return;
-        }
-
-        var minutes = (next.Span.Start - DateTime.Now).TotalMinutes;
-        string when = minutes < 60 ? $"in {Math.Max(1, (int)Math.Round(minutes))} min"
-            : DateOnly.FromDateTime(next.Span.Start) == DateOnly.FromDateTime(DateTime.Now) ? $"at {TimeText.Time(next.Span.Start)}"
-            : $"tomorrow at {TimeText.Time(next.Span.Start)}";
-        _tray.SetToolTip($"Dayflower\nNext: {next.Title} {when}");
-    }
-
-    private void ShowTrayNoticeOnce()
-    {
-        if (_settings is { TrayNoticeShown: false })
-        {
-            _settings.TrayNoticeShown = true;
+            _settings.BackgroundNoticeShown = true;
             _settings.Save();
             _notifications?.ShowNotice("Dayflower is still running",
-                "It stays in the notification area to remind you about events. To quit, right-click its icon.");
+                "It keeps reminding you about events in the background. Open it from Start; to quit, use Quit in Settings.");
         }
     }
 
     private void Quit()
     {
         _logger?.LogInformation("Quitting");
+        _services?.Updates.ApplyAfterExit();
         _reminders?.Dispose();
-        _tray?.Dispose();
         _notifications?.Unregister();
         _window?.CloseForGood();
         _services?.Dispose();

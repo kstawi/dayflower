@@ -20,7 +20,7 @@ public sealed class AppServices : IDisposable
 {
     private AppServices(
         ILoggerFactory loggers, HttpClient http, ICalendarStore store, ISecretProtector protector,
-        GoogleCalendarProvider google, SyncCoordinator sync)
+        GoogleCalendarProvider google, SyncCoordinator sync, UpdateService updates)
     {
         Loggers = loggers;
         Http = http;
@@ -28,6 +28,7 @@ public sealed class AppServices : IDisposable
         Protector = protector;
         Google = google;
         Sync = sync;
+        Updates = updates;
     }
 
     public ILoggerFactory Loggers { get; }
@@ -41,6 +42,8 @@ public sealed class AppServices : IDisposable
     public GoogleCalendarProvider Google { get; }
 
     public SyncCoordinator Sync { get; }
+
+    public UpdateService Updates { get; }
 
     public static AppServices Create(DispatcherQueue ui)
     {
@@ -65,14 +68,16 @@ public sealed class AppServices : IDisposable
             GoogleOAuthSettings.FromBuild(), http, OpenInBrowserAsync, TimeProvider.System, loggers);
         var engine = new SyncEngine(store, [google], protector, TimeProvider.System, loggers.CreateLogger<SyncEngine>());
         var sync = new SyncCoordinator(engine, ui, loggers.CreateLogger<SyncCoordinator>());
+        var updates = new UpdateService(ui, loggers.CreateLogger<UpdateService>());
 
-        return new AppServices(loggers, http, store, protector, google, sync);
+        return new AppServices(loggers, http, store, protector, google, sync, updates);
     }
 
     public IEnumerable<ICalendarProvider> Providers => [Google];
 
     public void Dispose()
     {
+        Updates.Dispose();
         Sync.Dispose();
         Http.Dispose();
         Loggers.Dispose();

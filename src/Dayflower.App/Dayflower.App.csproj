@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The WinUI 3 app: windows, views, view models, tray, notifications. Packaged as MSIX. -->
+  <!-- The WinUI 3 app: windows, views, view models, notifications. -->
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
@@ -21,10 +21,21 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <!--
+    A plain Dayflower.exe by default, as the installer ships it, with the Windows App SDK runtime included so nothing
+    has to be installed first. -p:PackageAsMsix=true builds the MSIX package instead, kept for a possible Microsoft
+    Store listing.
+  -->
+  <PropertyGroup Condition="'$(PackageAsMsix)' != 'true'">
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+
   <!-- Copied to the output folder, which run.ps1 registers as the development package. -->
   <ItemGroup>
     <Content Include="Assets\*.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Days\*.ico" CopyToOutputDirectory="PreserveNewest" />
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
 
@@ -40,11 +51,11 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
-    <PackageReference Include="H.NotifyIcon.WinUI" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
     <PackageReference Include="Microsoft.WindowsAppSDK" />
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Velopack" />
   </ItemGroup>
 
 </Project>

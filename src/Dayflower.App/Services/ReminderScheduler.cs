@@ -47,14 +47,6 @@ public sealed class ReminderScheduler : IDisposable
         _timer.Tick += (_, _) => CheckDue();
     }
 
-    /// <summary>Raised on every check; the tray uses it to keep "next event" current.</summary>
-    public event EventHandler? Ticked;
-
-    /// <summary>The next timed event that hasn't started yet, today or tomorrow.</summary>
-    public CalendarItem? NextEvent => _items.Values
-        .Where(i => !i.Span.IsAllDayLike && i.Span.Start > DateTime.Now)
-        .MinBy(i => i.Span.Start);
-
     public async Task StartAsync()
     {
         await ReplanAsync();
@@ -167,8 +159,6 @@ public sealed class ReminderScheduler : IDisposable
         {
             _state.Save();
         }
-
-        Ticked?.Invoke(this, EventArgs.Empty);
     }
 
     private void Show(string id, CalendarItem item, bool startingNow, DateTimeOffset now)

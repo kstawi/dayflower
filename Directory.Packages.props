@@ -5,7 +5,6 @@
   </PropertyGroup>
   <ItemGroup Label="App">
     <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
-    <PackageVersion Include="H.NotifyIcon.WinUI" Version="2.4.1" />
     <PackageVersion Include="Ical.Net" Version="5.2.4" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
@@ -14,6 +13,7 @@
     <PackageVersion Include="Serilog.Extensions.Logging" Version="10.0.0" />
     <PackageVersion Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
+    <PackageVersion Include="Velopack" Version="1.2.161" />
   </ItemGroup>
   <ItemGroup Label="Tests">
     <PackageVersion Include="xunit.v3" Version="4.0.2" />

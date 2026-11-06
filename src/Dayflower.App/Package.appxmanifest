@@ -9,7 +9,7 @@
   IgnorableNamespaces="uap uap5 com desktop rescap">
 
   <!-- Development identity. The Store listing replaces Name and Publisher with the ones Partner Center assigns. -->
-  <Identity Name="kstawi.Dayflower" Publisher="CN=kstawi" Version="0.6.0.0" />
+  <Identity Name="kstawi.Dayflower" Publisher="CN=kstawi" Version="0.7.0.0" />
 
   <Properties>
     <DisplayName>Dayflower</DisplayName>
@@ -50,7 +50,7 @@
           </com:ComServer>
         </com:Extension>
 
-        <!-- Start with Windows, on by default; switchable in Task Manager > Startup apps and in Dayflower's tray menu. -->
+        <!-- Start with Windows, on by default; switchable in Task Manager > Startup apps and in Dayflower's Settings. -->
         <uap5:Extension Category="windows.startupTask" Executable="Dayflower.exe" EntryPoint="Windows.FullTrustApplication">
           <uap5:StartupTask TaskId="DayflowerStartup" Enabled="true" DisplayName="Dayflower" />
         </uap5:Extension>
