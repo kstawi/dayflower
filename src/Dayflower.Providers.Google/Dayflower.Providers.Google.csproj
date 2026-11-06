@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Google sign-in and the Google Calendar API, mapped to the Core model. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dayflower.Core\Dayflower.Core.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,124 @@
+// Dayflower - https://github.com/kstawi/dayflower
+// Copyright (C) 2026 kstawi
+// Licensed under the GNU General Public License v3.0; see the LICENSE file.
+
+using System.ComponentModel;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using Dayflower.Core.Calendar;
+using Dayflower.ViewModels;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Windows.Graphics;
+using Windows.System.UserProfile;
+
+namespace Dayflower;
+
+public sealed partial class MainWindow : Window
+{
+    private const int DefaultWidth = 1280;
+    private const int DefaultHeight = 840;
+    private const int MinimumWidth = 760;
+    private const int MinimumHeight = 520;
+
+    // Set while the window updates the mini month or view switcher itself, so their change events don't loop back.
+    private bool _updatingControls;
+
+    public MainWindow()
+    {
+        // Week start comes from Windows' regional settings (Settings > Time & language > Language & region).
+        var weekStart = GlobalizationPreferences.WeekStartsOn;
+        ViewModel = new ShellViewModel(
+            new PeriodTitleFormatter(CultureInfo.CurrentUICulture, CultureInfo.CurrentCulture),
+            () => DateOnly.FromDateTime(DateTime.Now),
+            (DayOfWeek)(int)weekStart);
+
+        InitializeComponent();
+
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+        AppWindow.SetIcon("Assets/app.ico");
+        SizeAndCenter();
+
+        MiniMonth.FirstDayOfWeek = weekStart;
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+        UpdateControlsFromPeriod();
+    }
+
+    public ShellViewModel ViewModel { get; }
+
+    private void SizeAndCenter()
+    {
+        double scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
+        if (AppWindow.Presenter is OverlappedPresenter presenter)
+        {
+            presenter.PreferredMinimumWidth = (int)(MinimumWidth * scale);
+            presenter.PreferredMinimumHeight = (int)(MinimumHeight * scale);
+        }
+
+        var workArea = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+        int width = Math.Min((int)(DefaultWidth * scale), workArea.Width);
+        int height = Math.Min((int)(DefaultHeight * scale), workArea.Height);
+        AppWindow.MoveAndResize(new RectInt32(
+            workArea.X + (workArea.Width - width) / 2,
+            workArea.Y + (workArea.Height - height) / 2,
+            width,
+            height));
+    }
+
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ShellViewModel.Period))
+        {
+            UpdateControlsFromPeriod();
+        }
+    }
+
+    private void UpdateControlsFromPeriod()
+    {
+        var period = ViewModel.Period;
+        _updatingControls = true;
+        try
+        {
+            ViewSwitcher.SelectedItem = ViewSwitcher.Items[(int)period.Kind];
+
+            var anchor = new DateTimeOffset(period.Anchor.ToDateTime(TimeOnly.MinValue));
+            MiniMonth.SelectedDates.Clear();
+            MiniMonth.SelectedDates.Add(anchor);
+            MiniMonth.SetDisplayDate(anchor);
+        }
+        finally
+        {
+            _updatingControls = false;
+        }
+    }
+
+    private void AppTitleBar_PaneToggleRequested(TitleBar sender, object args)
+    {
+        SidePane.IsPaneOpen = !SidePane.IsPaneOpen;
+    }
+
+    private void MiniMonth_SelectedDatesChanged(CalendarView sender, CalendarViewSelectedDatesChangedEventArgs args)
+    {
+        if (_updatingControls || args.AddedDates.Count == 0)
+        {
+            return;
+        }
+
+        ViewModel.ShowDate(DateOnly.FromDateTime(args.AddedDates[0].Date));
+    }
+
+    private void ViewSwitcher_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    {
+        if (_updatingControls || sender.SelectedItem?.Tag is not string tag)
+        {
+            return;
+        }
+
+        ViewModel.ShowView(Enum.Parse<CalendarViewKind>(tag));
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+}

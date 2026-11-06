@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Local SQLite cache of accounts, calendars and events, the search index and settings. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dayflower.Core\Dayflower.Core.csproj" />
+  </ItemGroup>
+
+</Project>
