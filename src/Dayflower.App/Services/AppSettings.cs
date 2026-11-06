@@ -40,6 +40,9 @@ public sealed class AppSettings
     /// <summary>Reminders stay on screen until dealt with (Windows' reminder style), rather than fading away.</summary>
     public bool KeepRemindersOnScreen { get; set; } = true;
 
+    /// <summary>The calendar the last new event went to ("accountId|calendarId"), to suggest for the next one.</summary>
+    public string? LastCalendar { get; set; }
+
     /// <summary>Whether the "still running in the tray" notice has been shown once.</summary>
     public bool TrayNoticeShown { get; set; }
 

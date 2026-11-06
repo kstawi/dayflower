@@ -69,7 +69,40 @@ internal static class GoogleEventMapper
             },
             WebLink = Str(e, "htmlLink"),
             Updated = Str(e, "updated") is { } updated ? ParseDateTime(updated) : null,
+            GuestsCanModify = Bool(e, "guestsCanModify"),
+            GuestsCanInviteOthers = !e.TryGetProperty("guestsCanInviteOthers", out var invite) || invite.ValueKind != JsonValueKind.False,
+            GuestsCanSeeOtherGuests = !e.TryGetProperty("guestsCanSeeOtherGuests", out var see) || see.ValueKind != JsonValueKind.False,
+            Workspace = MapWorkspace(e),
         };
+    }
+
+    private static WorkspaceDetails? MapWorkspace(JsonElement e)
+    {
+        if (e.TryGetProperty("outOfOfficeProperties", out var ooo) || e.TryGetProperty("focusTimeProperties", out ooo))
+        {
+            return new WorkspaceDetails(
+                Str(ooo, "autoDeclineMode") switch
+                {
+                    "declineAllConflictingInvitations" => AutoDeclineMode.AllConflicting,
+                    "declineOnlyNewConflictingInvitations" => AutoDeclineMode.NewInvitations,
+                    _ => AutoDeclineMode.None,
+                },
+                Str(ooo, "declineMessage"));
+        }
+
+        if (e.TryGetProperty("workingLocationProperties", out var wl))
+        {
+            return Str(wl, "type") switch
+            {
+                "officeLocation" => new WorkspaceDetails(Location: WorkingLocationType.Office,
+                    LocationLabel: wl.TryGetProperty("officeLocation", out var o) ? Str(o, "label") : null),
+                "customLocation" => new WorkspaceDetails(Location: WorkingLocationType.Custom,
+                    LocationLabel: wl.TryGetProperty("customLocation", out var c) ? Str(c, "label") : null),
+                _ => new WorkspaceDetails(Location: WorkingLocationType.Home),
+            };
+        }
+
+        return null;
     }
 
     private static Attendee MapAttendee(JsonElement a) => new(

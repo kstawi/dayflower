@@ -179,7 +179,6 @@ public sealed class SqliteCalendarStore : ICalendarStore
 
     public async Task ApplyEventChangesAsync(string accountId, string calendarId, EventChangeSet changes, CancellationToken cancellationToken = default)
     {
-        string provider = accountId.Split(':')[0];
         await using var db = OpenConnection();
         await using var tx = await db.BeginTransactionAsync(cancellationToken);
 
@@ -189,6 +188,24 @@ public sealed class SqliteCalendarStore : ICalendarStore
                                ("$a", accountId), ("$c", calendarId));
         }
 
+        await WriteEventsAsync(db, accountId, calendarId, changes.Changes, cancellationToken);
+        await ExecuteAsync(db, "UPDATE calendars SET sync_token = $t WHERE account_id = $a AND id = $c", cancellationToken,
+                           ("$t", changes.NextSyncToken), ("$a", accountId), ("$c", calendarId));
+        await tx.CommitAsync(cancellationToken);
+    }
+
+    public async Task ApplyLocalChangesAsync(string accountId, string calendarId, IReadOnlyList<EventChange> changes, CancellationToken cancellationToken = default)
+    {
+        await using var db = OpenConnection();
+        await using var tx = await db.BeginTransactionAsync(cancellationToken);
+        await WriteEventsAsync(db, accountId, calendarId, changes, cancellationToken);
+        await tx.CommitAsync(cancellationToken);
+    }
+
+    private static async Task WriteEventsAsync(
+        SqliteConnection db, string accountId, string calendarId, IReadOnlyList<EventChange> changes, CancellationToken cancellationToken)
+    {
+        string provider = accountId.Split(':')[0];
         await using var upsert = db.CreateCommand();
         upsert.CommandText = """
             INSERT OR REPLACE INTO events (account_id, calendar_id, id, provider, status, ical_uid, series_id, is_series,
@@ -202,7 +219,7 @@ public sealed class SqliteCalendarStore : ICalendarStore
         remove.CommandText = "DELETE FROM events WHERE account_id = $a AND calendar_id = $c AND (id = $id OR series_id = $id)";
         var rp = new[] { "$a", "$c", "$id" }.ToDictionary(n => n, n => AddParameter(remove, n));
 
-        foreach (var change in changes.Changes)
+        foreach (var change in changes)
         {
             if (change.Event is not { } e)
             {
@@ -228,10 +245,6 @@ public sealed class SqliteCalendarStore : ICalendarStore
             p["$payload"].Value = change.Payload ?? throw new ArgumentException($"Event {change.EventId} has no payload.");
             await upsert.ExecuteNonQueryAsync(cancellationToken);
         }
-
-        await ExecuteAsync(db, "UPDATE calendars SET sync_token = $t WHERE account_id = $a AND id = $c", cancellationToken,
-                           ("$t", changes.NextSyncToken), ("$a", accountId), ("$c", calendarId));
-        await tx.CommitAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<StoredEvent>> GetEventsAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
@@ -252,6 +265,20 @@ public sealed class SqliteCalendarStore : ICalendarStore
         cmd.Parameters.AddWithValue("$fromWide", from.AddHours(-28).ToUnixTimeSeconds());
         cmd.Parameters.AddWithValue("$toWide", to.AddHours(28).ToUnixTimeSeconds());
         return await ReadEventsAsync(cmd, cancellationToken);
+    }
+
+    public async Task<StoredEvent?> GetEventAsync(EventKey key, CancellationToken cancellationToken = default)
+    {
+        await using var db = OpenConnection();
+        await using var cmd = db.CreateCommand();
+        cmd.CommandText = """
+            SELECT account_id, calendar_id, id, provider, payload FROM events
+            WHERE account_id = $a AND calendar_id = $c AND id = $id
+            """;
+        cmd.Parameters.AddWithValue("$a", key.AccountId);
+        cmd.Parameters.AddWithValue("$c", key.CalendarId);
+        cmd.Parameters.AddWithValue("$id", key.EventId);
+        return (await ReadEventsAsync(cmd, cancellationToken)).FirstOrDefault();
     }
 
     public async Task<IReadOnlyList<StoredEvent>> GetOccurrenceOverridesAsync(EventKey series, CancellationToken cancellationToken = default)

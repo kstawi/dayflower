@@ -9,7 +9,7 @@
   IgnorableNamespaces="uap uap5 com desktop rescap">
 
   <!-- Development identity. The Store listing replaces Name and Publisher with the ones Partner Center assigns. -->
-  <Identity Name="kstawi.Dayflower" Publisher="CN=kstawi" Version="0.4.0.0" />
+  <Identity Name="kstawi.Dayflower" Publisher="CN=kstawi" Version="0.5.0.0" />
 
   <Properties>
     <DisplayName>Dayflower</DisplayName>

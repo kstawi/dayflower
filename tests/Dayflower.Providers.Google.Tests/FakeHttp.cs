@@ -15,7 +15,7 @@ internal sealed class FakeHttp : HttpMessageHandler
 {
     private readonly List<(string Fragment, Queue<(HttpStatusCode Status, string Body)> Responses)> _routes = [];
 
-    public List<(string Url, string? Authorization, string? Body)> Requests { get; } = [];
+    public List<(string Url, string? Authorization, string? Body, string Method)> Requests { get; } = [];
 
     public FakeHttp On(string urlFragment, HttpStatusCode status, string body)
     {
@@ -39,7 +39,7 @@ internal sealed class FakeHttp : HttpMessageHandler
     {
         string url = request.RequestUri!.ToString();
         string? body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
-        Requests.Add((url, request.Headers.Authorization?.ToString(), body));
+        Requests.Add((url, request.Headers.Authorization?.ToString(), body, request.Method.Method));
 
         foreach (var (fragment, responses) in _routes)
         {

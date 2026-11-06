@@ -2,6 +2,7 @@
 // Copyright (C) 2026 kstawi
 // Licensed under the GNU General Public License v3.0; see the LICENSE file.
 
+using Dayflower.Core.Editing;
 using Dayflower.Core.Model;
 
 namespace Dayflower.Core.Providers;
@@ -58,7 +59,26 @@ public interface ICalendarConnection
 
     /// <summary>Withdraws Dayflower's access to the account at the provider.</summary>
     Task RevokeAsync(CancellationToken cancellationToken);
+
+    /// <summary>Creates an event. Returns the cache changes to apply.</summary>
+    Task<IReadOnlyList<EventChange>> CreateEventAsync(string calendarId, EventEdit edit, bool notifyGuests, CancellationToken cancellationToken);
+
+    /// <summary>Changes an event, or for a repeating one the occurrences <paramref name="scope"/> picks.</summary>
+    Task<IReadOnlyList<EventChange>> UpdateEventAsync(EventTarget target, EventEdit edit, EditScope scope, bool notifyGuests, CancellationToken cancellationToken);
+
+    /// <summary>Deletes an event, or for a repeating one the occurrences <paramref name="scope"/> picks.</summary>
+    Task<IReadOnlyList<EventChange>> DeleteEventAsync(EventTarget target, EditScope scope, bool notifyGuests, CancellationToken cancellationToken);
+
+    /// <summary>Answers an invitation (one occurrence, or all of them).</summary>
+    Task<IReadOnlyList<EventChange>> RespondAsync(EventTarget target, Rsvp rsvp, EditScope scope, CancellationToken cancellationToken);
+
+    /// <summary>When people are busy, for the guest availability view. People whose calendars can't be seen are marked unknown.</summary>
+    Task<IReadOnlyDictionary<string, FreeBusy>> GetFreeBusyAsync(
+        IReadOnlyList<string> emails, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken);
 }
+
+/// <summary>Someone's busy times, or <see cref="IsUnknown"/> when their calendar isn't visible to the user.</summary>
+public sealed record FreeBusy(IReadOnlyList<(DateTimeOffset Start, DateTimeOffset End)> Busy, bool IsUnknown);
 
 public sealed record CalendarListChanges(
     bool IsFullSync,

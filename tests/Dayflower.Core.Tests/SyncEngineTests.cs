@@ -242,6 +242,21 @@ public class SyncEngineTests
             throw new NotSupportedException();
 
         public Task RevokeAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<EventChange>> CreateEventAsync(string calendarId, Dayflower.Core.Editing.EventEdit edit, bool notifyGuests, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<EventChange>> UpdateEventAsync(Dayflower.Core.Editing.EventTarget target, Dayflower.Core.Editing.EventEdit edit, Dayflower.Core.Editing.EditScope scope, bool notifyGuests, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<EventChange>> DeleteEventAsync(Dayflower.Core.Editing.EventTarget target, Dayflower.Core.Editing.EditScope scope, bool notifyGuests, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyList<EventChange>> RespondAsync(Dayflower.Core.Editing.EventTarget target, Dayflower.Core.Editing.Rsvp rsvp, Dayflower.Core.Editing.EditScope scope, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<IReadOnlyDictionary<string, FreeBusy>> GetFreeBusyAsync(IReadOnlyList<string> emails, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     /// <summary>Just enough of a store for the sync engine.</summary>
@@ -319,10 +334,16 @@ public class SyncEngineTests
             return Task.CompletedTask;
         }
 
+        public Task ApplyLocalChangesAsync(string accountId, string calendarId, IReadOnlyList<EventChange> changes, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
         public Task<IReadOnlyList<StoredEvent>> GetEventsAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public Task<IReadOnlyList<StoredEvent>> GetOccurrenceOverridesAsync(EventKey series, CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
+
+        public Task<StoredEvent?> GetEventAsync(EventKey key, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
         public Task<CacheStats> GetStatsAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();

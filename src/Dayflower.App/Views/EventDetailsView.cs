@@ -16,7 +16,7 @@ namespace Dayflower.Views;
 
 /// <summary>
 /// The details of an event, shown in a flyout when it's clicked: when, where, which calendars, guests and their
-/// answers, and the description. Read-only for now; editing, RSVP and Join come in later phases.
+/// answers, and the description; with Join, Edit and Delete, and Yes / Maybe / No for invitations.
 /// </summary>
 public sealed partial class EventDetailsView : UserControl
 {
@@ -27,15 +27,19 @@ public sealed partial class EventDetailsView : UserControl
 
     private readonly ElementTheme _theme;
 
-    public EventDetailsView(CalendarItem item, ElementTheme theme, Func<Uri, Task> openLink, Func<CalendarItem, string?, Task>? join = null)
+    public EventDetailsView(
+        CalendarItem item, ElementTheme theme, Func<Uri, Task> openLink, Func<CalendarItem, string?, Task>? join = null,
+        EventActions? actions = null, Action? hide = null)
     {
         _theme = theme;
+        hide ??= () => { };
         var e = item.Event;
         var root = new StackPanel { Spacing = 14, Width = 360 };
 
         var heading = new Grid { ColumnSpacing = 12 };
         heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         heading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         heading.Children.Add(new Border
         {
             Width = 14,
@@ -54,6 +58,12 @@ public sealed partial class EventDetailsView : UserControl
         };
         Grid.SetColumn(title, 1);
         heading.Children.Add(title);
+        if (actions is not null && Tools(item, actions, hide) is { } tools)
+        {
+            Grid.SetColumn(tools, 2);
+            heading.Children.Add(tools);
+        }
+
         root.Children.Add(heading);
 
         if (item.Meeting is { } joinable && join is not null)
@@ -75,7 +85,8 @@ public sealed partial class EventDetailsView : UserControl
 
         root.Children.Add(Line("", string.Join("\n", item.Copies.Select(Where))));
 
-        if (item.MyResponse is { } response)
+        bool canReply = actions is not null && item.RespondableCopy is not null;
+        if (item.MyResponse is { } response && !canReply)
         {
             root.Children.Add(Line("", "Your answer: " + Answer(response)));
         }
@@ -99,6 +110,11 @@ public sealed partial class EventDetailsView : UserControl
                     Foreground = ThemeBrush("TextFillColorSecondaryBrush"),
                 },
             });
+        }
+
+        if (canReply)
+        {
+            root.Children.Add(Reply(item, actions!, hide));
         }
 
         if (Uri.TryCreate(e.WebLink, UriKind.Absolute, out var link))
@@ -142,6 +158,111 @@ public sealed partial class EventDetailsView : UserControl
         }
 
         return panel;
+    }
+
+    /// <summary>Edit and Delete (Decline for someone else's invitation), unavailable while offline.</summary>
+    private static StackPanel? Tools(CalendarItem item, EventActions actions, Action hide)
+    {
+        var tools = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Top };
+        if (item.EditableCopy is not null)
+        {
+            tools.Children.Add(Tool("", "Edit event", hide, () => actions.EditAsync(item)));
+        }
+
+        if (item.DeletableCopy is not null)
+        {
+            tools.Children.Add(Tool("", "Delete event", hide, () => actions.DeleteAsync(item)));
+        }
+        else if (item.RespondableCopy is not null)
+        {
+            tools.Children.Add(Tool("", "Decline and remove", hide, () => actions.DeleteAsync(item)));
+        }
+
+        return tools.Children.Count > 0 ? tools : null;
+    }
+
+    private static Button Tool(string glyph, string name, Action hide, Func<Task> action)
+    {
+        bool online = EventActions.IsOnline;
+        var button = new Button
+        {
+            Content = new FontIcon { Glyph = glyph, FontSize = 16 },
+            Style = EventVisuals.Resource<Style>("SubtleIconButtonStyle"),
+            IsEnabled = online,
+        };
+        ToolTipService.SetToolTip(button, online ? name : $"{name} (needs an internet connection)");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, name);
+        button.Click += async (_, _) =>
+        {
+            hide();
+            await action();
+        };
+        return button;
+    }
+
+    /// <summary>"Going? Yes Maybe No", with the current answer highlighted, and a link to add a note.</summary>
+    private Grid Reply(CalendarItem item, EventActions actions, Action hide)
+    {
+        var self = item.RespondableCopy!.Event.Self;
+        bool online = EventActions.IsOnline;
+        var panel = new StackPanel { Spacing = 6 };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6 };
+        buttons.Children.Add(new TextBlock { Text = "Going?", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+        foreach (var (label, answer) in new[] { ("Yes", AttendeeResponse.Accepted), ("Maybe", AttendeeResponse.Tentative), ("No", AttendeeResponse.Declined) })
+        {
+            var button = new Button { Content = label, MinWidth = 60, IsEnabled = online };
+            if (self?.Response == answer)
+            {
+                button.Style = EventVisuals.Resource<Style>("AccentButtonStyle");
+            }
+
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, $"Going: {label}");
+            button.Click += async (_, _) =>
+            {
+                hide();
+                await actions.RespondAsync(item, answer);
+            };
+            buttons.Children.Add(button);
+        }
+
+        panel.Children.Add(buttons);
+        if (!string.IsNullOrWhiteSpace(self?.Comment))
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = $"Your note: {self.Comment.Trim()}",
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = ThemeBrush("TextFillColorSecondaryBrush"),
+            });
+        }
+
+        var note = new HyperlinkButton
+        {
+            Content = string.IsNullOrWhiteSpace(self?.Comment) ? "Add a note" : "Change note",
+            Padding = new Thickness(0),
+            IsEnabled = online,
+        };
+        note.Click += async (_, _) =>
+        {
+            hide();
+            await actions.RespondWithNoteAsync(item);
+        };
+        panel.Children.Add(note);
+
+        var line = new Grid { ColumnSpacing = 12 };
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+        line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        line.Children.Add(new FontIcon
+        {
+            Glyph = "",
+            FontSize = 16,
+            Foreground = ThemeBrush("TextFillColorSecondaryBrush"),
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 8, 0, 0),
+        });
+        Grid.SetColumn(panel, 1);
+        line.Children.Add(panel);
+        return line;
     }
 
     private static string Where(CalendarCopy copy) =>

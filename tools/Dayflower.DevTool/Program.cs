@@ -15,6 +15,7 @@
 // --data defaults to the installed app's LocalState folder.
 
 using System.Globalization;
+using Dayflower.Core.Editing;
 using Dayflower.Core.Model;
 using Dayflower.Core.Recurrence;
 using Dayflower.Core.Sync;
@@ -54,8 +55,10 @@ switch (command)
         return await CompareAsync(int.Parse(Option("--days") ?? "42", CultureInfo.InvariantCulture));
     case "meetings":
         return await MeetingsAsync(int.Parse(Option("--days") ?? "60", CultureInfo.InvariantCulture));
+    case "edit-test":
+        return await EditTestAsync();
     default:
-        Console.Error.WriteLine($"Unknown command {command}. Use stats, sync or audit.");
+        Console.Error.WriteLine($"Unknown command {command}. Use stats, sync, audit, recent, compare, meetings or edit-test.");
         return 1;
 }
 
@@ -315,6 +318,245 @@ async Task<int> MeetingsAsync(int days)
     }
 
     return misses.Count == 0 ? 0 : 3;
+}
+
+// Every kind of change Dayflower makes, on throwaway events of its own: created a month ahead at 6:00, without guests
+// or notifications, checked against Google's own view after each step, and all deleted at the end, even on failure.
+async Task<int> EditTestAsync()
+{
+    const string Prefix = "Dayflower test (safe to delete)";
+    var account = (await store.GetAccountsAsync()).First(a => Option("--account") is not { } email || a.Email == email);
+    var calendar = (await store.GetCalendarsAsync(account.Id)).First(c => c.IsPrimary);
+    var connection = google.Connect(account.Id, protector.Unprotect((await store.GetAccountSecretAsync(account.Id))!));
+    string calendarId = calendar.Id;
+    string zone = TimeZoneInfo.Local.HasIanaId ? TimeZoneInfo.Local.Id
+        : TimeZoneInfo.TryConvertWindowsIdToIanaId(TimeZoneInfo.Local.Id, out var iana) ? iana : "UTC";
+    var day = DateOnly.FromDateTime(DateTime.Now.AddDays(30));
+    var rangeFrom = new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue)).AddDays(-1);
+    var rangeTo = rangeFrom.AddDays(9);
+    var quiet = new ReminderSettings(false, []);
+    var created = new List<string>();
+    int failures = 0;
+    Console.WriteLine($"Account {account.Email}, calendar {calendar.Name}, test day {day:yyyy-MM-dd}, zone {zone}");
+
+    EventTime At(DateOnly d, int hour, int minute = 0)
+    {
+        var local = d.ToDateTime(new TimeOnly(hour, minute));
+        return EventTime.At(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)), zone);
+    }
+
+    void Check(bool ok, string what)
+    {
+        Console.WriteLine($"  {(ok ? "PASS" : "FAIL")}  {what}");
+        if (!ok)
+        {
+            failures++;
+        }
+    }
+
+    async Task<List<CalendarEvent>> Mine() => (await connection.GetExpandedEventsAsync(calendarId, rangeFrom, rangeTo, CancellationToken.None))
+        .Where(e => e.Summary?.StartsWith(Prefix, StringComparison.Ordinal) == true)
+        .OrderBy(e => e.Start.EarliestUtc).ToList();
+
+    string Show(IEnumerable<CalendarEvent> events) =>
+        string.Join("; ", events.Select(e => $"{e.Start.DateTime?.LocalDateTime:MM-dd HH:mm}{e.Start.Date:MM-dd} {e.Summary![Prefix.Length..].Trim()}"));
+
+    CalendarEvent Added(IReadOnlyList<Dayflower.Core.Providers.EventChange> changes)
+    {
+        foreach (var c in changes.Where(c => c.Event is not null))
+        {
+            if (!created.Contains(c.EventId) && !c.Event!.IsOccurrenceOverride)
+            {
+                created.Add(c.EventId);
+            }
+        }
+
+        return changes.Last().Event!;
+    }
+
+    EventTarget OccurrenceOf(CalendarEvent series, DateOnly d, int hour, int minute = 0)
+    {
+        var start = At(d, hour, minute);
+        var end = EventTime.At(start.DateTime!.Value + (series.End.EarliestUtc - series.Start.EarliestUtc), zone);
+        return new EventTarget(series, start, start, end);
+    }
+
+    try
+    {
+        Console.WriteLine("One-off event");
+        var oneOff = Added(await connection.CreateEventAsync(calendarId, new EventEdit
+        {
+            Summary = $"{Prefix} one-off",
+            Start = At(day, 6),
+            End = At(day, 6, 30),
+            Meet = true,
+            Reminders = quiet,
+            ColorId = "5",
+            Description = "Created by dayflower-dev edit-test.",
+        }, notifyGuests: false, CancellationToken.None));
+        Check(oneOff.HangoutLink is not null, "created with a Google Meet link");
+        Check(oneOff.ColorId == "5", "colour set");
+
+        var target = new EventTarget(oneOff, null, oneOff.Start, oneOff.End);
+        var renamed = (await connection.UpdateEventAsync(target, new EventEdit { Summary = $"{Prefix} one-off renamed", Location = "Nowhere" },
+                                                         EditScope.ThisEvent, false, CancellationToken.None))[0].Event!;
+        Check(renamed.Summary!.EndsWith("renamed", StringComparison.Ordinal) && renamed.Location == "Nowhere", "renamed and located");
+        Check(renamed.Description == "Created by dayflower-dev edit-test." && renamed.HangoutLink is not null, "untouched fields kept");
+
+        var moved = (await connection.UpdateEventAsync(target, new EventEdit { Start = At(day, 7), End = At(day, 7, 45), Meet = false, ColorId = string.Empty },
+                                                       EditScope.ThisEvent, false, CancellationToken.None))[0].Event!;
+        Check(moved.Start.EarliestUtc == At(day, 7).EarliestUtc && moved.End.EarliestUtc == At(day, 7, 45).EarliestUtc, "moved to 7:00-7:45");
+        Check(moved.HangoutLink is null && moved.ColorId is null, "Meet and colour removed");
+
+        var gone = await connection.DeleteEventAsync(target, EditScope.ThisEvent, false, CancellationToken.None);
+        Check(gone.Single().IsRemoved, "deleted");
+        created.Remove(oneOff.Key.EventId);
+
+        var allDay = Added(await connection.CreateEventAsync(calendarId, new EventEdit
+        {
+            Summary = $"{Prefix} all-day",
+            Start = EventTime.AllDay(day),
+            End = EventTime.AllDay(day.AddDays(2)),
+            IsBusy = false,
+            Reminders = quiet,
+        }, false, CancellationToken.None));
+        Check(allDay.Start.Date == day && allDay.End.Date == day.AddDays(2) && !allDay.IsBusy, "two-day all-day event, free");
+
+        Console.WriteLine("Repeating event: daily at 6:00, five times");
+        var series = Added(await connection.CreateEventAsync(calendarId, new EventEdit
+        {
+            Summary = $"{Prefix} daily",
+            Start = At(day, 6),
+            End = At(day, 6, 30),
+            Recurrence = ["RRULE:FREQ=DAILY;COUNT=5"],
+            Reminders = quiet,
+        }, false, CancellationToken.None));
+        var list = await Mine();
+        Check(list.Count(e => e.Summary!.EndsWith("daily", StringComparison.Ordinal)) == 5, $"five occurrences: {Show(list)}");
+
+        await connection.UpdateEventAsync(OccurrenceOf(series, day.AddDays(1), 6), new EventEdit { Summary = $"{Prefix} daily #2 only" },
+                                          EditScope.ThisEvent, false, CancellationToken.None);
+        await connection.UpdateEventAsync(OccurrenceOf(series, day.AddDays(2), 6), new EventEdit { Start = At(day.AddDays(2), 8), End = At(day.AddDays(2), 8, 30) },
+                                          EditScope.ThisEvent, false, CancellationToken.None);
+        list = await Mine();
+        Check(list.Count(e => e.Summary!.EndsWith("#2 only", StringComparison.Ordinal)) == 1, "this event: second renamed alone");
+        Check(list.Any(e => e.Start.EarliestUtc == At(day.AddDays(2), 8).EarliestUtc), $"this event: third moved to 8:00: {Show(list)}");
+
+        // Moving the fourth from 6:00 to 6:30 with "all events" moves the series by half an hour.
+        await connection.UpdateEventAsync(OccurrenceOf(series, day.AddDays(3), 6), new EventEdit { Start = At(day.AddDays(3), 6, 30), End = At(day.AddDays(3), 7) },
+                                          EditScope.AllEvents, false, CancellationToken.None);
+        list = await Mine();
+        Check(list.Any(e => e.Start.EarliestUtc == At(day, 6, 30).EarliestUtc) && list.Any(e => e.Start.EarliestUtc == At(day.AddDays(4), 6, 30).EarliestUtc),
+              $"all events: series now at 6:30: {Show(list)}");
+
+        var split = await connection.UpdateEventAsync(OccurrenceOf(series with { Start = At(day, 6, 30), End = At(day, 7) }, day.AddDays(3), 6, 30),
+                                                      new EventEdit { Summary = $"{Prefix} daily following" }, EditScope.ThisAndFollowing, false, CancellationToken.None);
+        var continuation = Added(split);
+        list = await Mine();
+        Check(list.Count(e => e.Summary!.EndsWith("following", StringComparison.Ordinal)) == 2, $"this and following: last two renamed: {Show(list)}");
+        Check(list.Count(e => e.Summary!.Contains("daily", StringComparison.Ordinal)) == 5, "this and following: still five in all");
+        Check(continuation.Recurrence.Single().Contains("COUNT=2", StringComparison.Ordinal), $"continuation repeats twice: {continuation.Recurrence.Single()}");
+
+        var seriesNow = (await connection.GetOccurrencesAsync(calendarId, series.Key.EventId, rangeFrom, rangeTo, CancellationToken.None)).ToList();
+        var first = seriesNow.First();
+        await connection.DeleteEventAsync(new EventTarget(series with { Start = At(day, 6, 30), End = At(day, 7) }, first.OriginalStart, first.Start, first.End),
+                                          EditScope.ThisEvent, false, CancellationToken.None);
+        list = await Mine();
+        Check(!list.Any(e => e.Start.EarliestUtc == At(day, 6, 30).EarliestUtc && e.Summary!.EndsWith("daily", StringComparison.Ordinal)),
+              $"delete this event: first gone: {Show(list)}");
+
+        await connection.DeleteEventAsync(OccurrenceOf(continuation, day.AddDays(4), 6, 30), EditScope.ThisAndFollowing, false, CancellationToken.None);
+        list = await Mine();
+        Check(list.Count(e => e.Summary!.EndsWith("following", StringComparison.Ordinal)) == 1, $"delete this and following: one left: {Show(list)}");
+
+        await connection.DeleteEventAsync(OccurrenceOf(continuation, day.AddDays(3), 6, 30), EditScope.AllEvents, false, CancellationToken.None);
+        await connection.DeleteEventAsync(OccurrenceOf(series with { Start = At(day, 6, 30), End = At(day, 7) }, day.AddDays(1), 6, 30), EditScope.AllEvents, false, CancellationToken.None);
+        created.Remove(continuation.Key.EventId);
+        created.Remove(series.Key.EventId);
+        list = await Mine();
+        Check(list.All(e => !e.Summary!.Contains("daily", StringComparison.Ordinal)), $"delete all events: both series gone: {Show(list)}");
+
+        Console.WriteLine("Free/busy");
+        var busy = await connection.GetFreeBusyAsync([account.Email], rangeFrom, rangeTo, CancellationToken.None);
+        Check(busy.TryGetValue(account.Email, out var mine) && !mine.IsUnknown, $"own availability readable ({mine?.Busy.Count} busy periods)");
+
+        if (account.Email.EndsWith("@gmail.com", StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine("Workspace event types: skipped (Gmail account)");
+        }
+        else
+        {
+            Console.WriteLine("Workspace event types (declining nothing)");
+            var focus = Added(await connection.CreateEventAsync(calendarId, new EventEdit
+            {
+                Summary = $"{Prefix} focus",
+                Start = At(day.AddDays(5), 6),
+                End = At(day.AddDays(5), 7),
+                Kind = EventKind.FocusTime,
+                Workspace = new WorkspaceDetails(AutoDeclineMode.None),
+            }, false, CancellationToken.None));
+            Check(focus.Kind == EventKind.FocusTime, "focus time created");
+            var place = Added(await connection.CreateEventAsync(calendarId, new EventEdit
+            {
+                Summary = $"{Prefix} working location",
+                Start = EventTime.AllDay(day.AddDays(5)),
+                End = EventTime.AllDay(day.AddDays(6)),
+                Kind = EventKind.WorkingLocation,
+                Workspace = new WorkspaceDetails(Location: WorkingLocationType.Custom, LocationLabel: "Test place"),
+            }, false, CancellationToken.None));
+            Check(place.Kind == EventKind.WorkingLocation && place.Workspace?.LocationLabel == "Test place", "working location created");
+            var away = Added(await connection.CreateEventAsync(calendarId, new EventEdit
+            {
+                Summary = $"{Prefix} out of office",
+                Start = At(day.AddDays(6), 6),
+                End = At(day.AddDays(6), 7),
+                Kind = EventKind.OutOfOffice,
+                Workspace = new WorkspaceDetails(AutoDeclineMode.None, "Test"),
+            }, false, CancellationToken.None));
+            Check(away.Kind == EventKind.OutOfOffice && away.Workspace?.DeclineMessage == "Test", "out of office created");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"  FAIL  {ex.GetType().Name}: {ex.Message}");
+        failures++;
+    }
+    finally
+    {
+        // Whatever is left of the test events goes.
+        foreach (var e in await Mine())
+        {
+            string id = e.RecurringEventId ?? e.Key.EventId;
+            if (!created.Contains(id))
+            {
+                created.Add(id);
+            }
+        }
+
+        foreach (var id in created)
+        {
+            try
+            {
+                var leftover = new CalendarEvent { Key = new EventKey(account.Id, calendarId, id), Start = At(day, 6), End = At(day, 7) };
+                await connection.DeleteEventAsync(new EventTarget(leftover, null, leftover.Start, leftover.End), EditScope.ThisEvent, false, CancellationToken.None);
+                Console.WriteLine($"  cleaned up {id}");
+            }
+            catch (Exception ex)
+            {
+                // 404 and 410 mean it was already gone.
+                if (!ex.Message.Contains("410", StringComparison.Ordinal) && !ex.Message.Contains("404", StringComparison.Ordinal))
+                {
+                    Console.WriteLine($"  couldn't clean up {id}: {ex.Message}");
+                }
+            }
+        }
+
+        var left = await Mine();
+        Console.WriteLine(left.Count == 0 ? "No test events left." : $"Still there: {Show(left)}");
+    }
+
+    Console.WriteLine(failures == 0 ? "All checks passed." : $"{failures} checks failed.");
+    return failures == 0 ? 0 : 4;
 }
 
 int Recent(int count)

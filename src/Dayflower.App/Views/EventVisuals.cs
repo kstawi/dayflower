@@ -22,6 +22,28 @@ public sealed class ItemClickedEventArgs(FrameworkElement anchor, CalendarItem i
     public CalendarItem Item { get; } = item;
 }
 
+/// <summary>Raised when the user picks empty time to create an event: where to anchor the flyout, and the time (local).</summary>
+public sealed class SlotSelectedEventArgs(FrameworkElement anchor, DateTime start, DateTime end, bool allDay) : EventArgs
+{
+    public FrameworkElement Anchor { get; } = anchor;
+
+    public DateTime Start { get; } = start;
+
+    public DateTime End { get; } = end;
+
+    public bool AllDay { get; } = allDay;
+}
+
+/// <summary>Raised when the user drags an event: its new start and end, in local time.</summary>
+public sealed class ItemMovedEventArgs(CalendarItem item, DateTime start, DateTime end) : EventArgs
+{
+    public CalendarItem Item { get; } = item;
+
+    public DateTime Start { get; } = start;
+
+    public DateTime End { get; } = end;
+}
+
 /// <summary>
 /// How events look in every view: a tint of the calendar's colour with a solid bar on the left, like Windows'
 /// own calendar surfaces. Unanswered invitations are outlined instead of filled, tentative ones are fainter.

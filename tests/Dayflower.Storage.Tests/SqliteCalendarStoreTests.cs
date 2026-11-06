@@ -154,6 +154,23 @@ public sealed class SqliteCalendarStoreTests : IDisposable
     }
 
     [Fact]
+    public async Task Local_changes_show_at_once_and_leave_the_sync_token()
+    {
+        await WithCalendarsAsync(Calendar("primary"));
+        await _store.ApplyEventChangesAsync(Me, "primary", new EventChangeSet(true,
+            [Timed("a", Nov6, TimeSpan.FromHours(1)), Timed("b", Nov6, TimeSpan.FromHours(1))], "t1"));
+
+        await _store.ApplyLocalChangesAsync(Me, "primary",
+            [new EventChange("a", null, null), Timed("b", Nov6.AddHours(5), TimeSpan.FromHours(1)), Timed("new", Nov6, TimeSpan.FromHours(1))]);
+
+        var events = await _store.GetEventsAsync(Nov6.AddDays(-1), Nov6.AddDays(1));
+        Assert.Equal(["b", "new"], events.Select(e => e.Key.EventId).Order());
+        Assert.Equal("t1", await _store.GetEventSyncTokenAsync(Me, "primary"));
+        Assert.Equal("""{"id":"new"}""", (await _store.GetEventAsync(new EventKey(Me, "primary", "new")))!.Payload);
+        Assert.Null(await _store.GetEventAsync(new EventKey(Me, "primary", "a")));
+    }
+
+    [Fact]
     public async Task Removing_a_series_removes_its_changed_occurrences()
     {
         await WithCalendarsAsync(Calendar("primary"));

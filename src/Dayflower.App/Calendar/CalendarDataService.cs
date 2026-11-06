@@ -70,7 +70,7 @@ public sealed class CalendarDataService(AppServices services)
             {
                 var calendar = calendars[(c.Event.Key.AccountId, c.Event.Key.CalendarId)];
                 return new CalendarCopy(calendar.Name, emails.GetValueOrDefault(c.Event.Key.AccountId, string.Empty),
-                                        ColorOf(c.Event, calendar), c.Event.Self?.Response);
+                                        ColorOf(c.Event, calendar), c.Event.Self?.Response, calendar.Access);
             }).ToList();
             result.Add(new CalendarItem(m, span, copies[0].Color, copies));
         }

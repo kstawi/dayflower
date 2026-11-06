@@ -4,8 +4,9 @@ A Windows 11 calendar app that shows several Google accounts in one calendar, pu
 video meeting, and raises desktop reminders that match the reminders set in Google Calendar. It's built to look
 like part of Windows 11, starts with Google, and leaves room for Microsoft 365, iCloud, CalDAV and ICS later.
 
-Status: agreed in the planning interview on 2026-11-06. Phases 0–4 (setup, accounts and sync, calendar views,
-Join, reminders with tray and start-up) are done: the daily-driver milestone. Phase 5 (editing) is next.
+Status: agreed in the planning interview on 2026-11-06. Phases 0–5 (setup, accounts and sync, calendar views,
+Join, reminders with tray and start-up, editing) are done; phase 4 was the daily-driver milestone. Phase 6 (search,
+invitations, world clock, settings) is next.
 
 ## 1. Decisions
 
@@ -319,6 +320,21 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
   Workspace event types. Offline: editing disabled with a clear bar.
 - **Done when:** everything you'd normally do in Google Calendar on the web can be done in the app, and the result
   looks right in Google Calendar.
+- **Result:** the edit model is in Core (`EventEdit`, `RecurrenceRule`, `SeriesSplit`, `SeriesShift`, permission
+  rules); the Google provider sends only what changed (PATCH), addresses an occurrence by its instance ID, splits a
+  series for "this and following" as Google does, answers invitations by sending the guest list back with only the
+  user's answer changed, and asks free/busy for availability. What Google sends back goes straight into the cache
+  (`ApplyLocalChangesAsync`, sync token untouched) and a sync follows. In the app: Edit, Delete (Decline for someone
+  else's invitation) and Going? Yes / Maybe / No with a note in the details flyout; click or drag over empty time
+  for a quick-create flyout, or New event for the full editor (a dialog with every field above, plus out of office,
+  focus time and working location on Workspace main calendars); drag events to move them and drag their bottom
+  edge to resize, in 15-minute steps. Editing is unavailable offline (buttons disabled, a message otherwise).
+  `dayflower-dev edit-test` runs every change against Google on throwaway events (created a month ahead, without
+  guests or notifications, deleted afterwards): all 23 checks passed. The app's own create, edit, "this event" and
+  delete flows were also run on test events, and the cache matched Google afterwards.
+- **Learned:** moving "all events" of a series makes Google reset occurrences that were changed one by one, as in
+  Google Calendar itself. Background reloads wait while a flyout is open, so a sync can't pull an event out from
+  under it.
 
 ### Phase 6: Search, invitations, world clock, settings (M)
 - Search (cached + "Search Google"), invitation toasts with Accept / Maybe / Decline, world clock in the side pane,

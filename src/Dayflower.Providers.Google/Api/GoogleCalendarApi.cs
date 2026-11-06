@@ -4,7 +4,9 @@
 
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Dayflower.Core.Providers;
 using Dayflower.Providers.Google.OAuth;
 using Microsoft.Extensions.Logging;
@@ -12,8 +14,8 @@ using Microsoft.Extensions.Logging;
 namespace Dayflower.Providers.Google.Api;
 
 /// <summary>
-/// Authorised GET requests to the Google Calendar API v3 for one account, with token refresh, retries for rate
-/// limits and server errors, and Google's 410 "sync token expired" mapped to <see cref="SyncTokenExpiredException"/>.
+/// Authorised requests to the Google Calendar API v3 for one account, with token refresh, retries for rate limits
+/// and server errors, and Google's 410 "sync token expired" mapped to <see cref="SyncTokenExpiredException"/>.
 /// </summary>
 internal sealed class GoogleCalendarApi(
     HttpClient http,
@@ -27,26 +29,40 @@ internal sealed class GoogleCalendarApi(
 
     private readonly Func<TimeSpan, CancellationToken, Task> _delay = delay ?? Task.Delay;
 
-    public async Task<JsonDocument> GetAsync(string relativeUrl, CancellationToken cancellationToken)
+    public async Task<JsonDocument> GetAsync(string relativeUrl, CancellationToken cancellationToken) =>
+        (await SendAsync(HttpMethod.Get, relativeUrl, null, cancellationToken))!;
+
+    /// <summary>Sends a request; returns the response JSON, or null for an empty response (DELETE).</summary>
+    public async Task<JsonDocument?> SendAsync(HttpMethod method, string relativeUrl, JsonNode? body, CancellationToken cancellationToken)
     {
+        // A POST that failed on the server may still have created something, so only rate limits (where Google
+        // says nothing was done) are retried for it. GET, PATCH and DELETE are safe to repeat.
+        bool idempotent = method != HttpMethod.Post;
+        string? json = body?.ToJsonString();
         bool refreshed = false;
+
         for (int attempt = 1; ; attempt++)
         {
             string token = await tokens.GetAsync(forceRefresh: false, cancellationToken);
-            using var request = new HttpRequestMessage(HttpMethod.Get, BaseUrl + relativeUrl);
+            using var request = new HttpRequestMessage(method, BaseUrl + relativeUrl);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-            using var response = await http.SendAsync(request, cancellationToken);
-            string body = await response.Content.ReadAsStringAsync(cancellationToken);
-            if (response.IsSuccessStatusCode)
+            if (json is not null)
             {
-                return JsonDocument.Parse(body);
+                request.Content = new StringContent(json, Encoding.UTF8, "application/json");
             }
 
-            var error = GoogleApiError.Parse(response.StatusCode, body);
+            using var response = await http.SendAsync(request, cancellationToken);
+            string text = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                return text.Length == 0 ? null : JsonDocument.Parse(text);
+            }
+
+            var error = GoogleApiError.Parse(response.StatusCode, text);
             switch (response.StatusCode)
             {
-                case HttpStatusCode.Gone:
+                // 410 also answers requests for deleted events; only on a sync does it mean "start over".
+                case HttpStatusCode.Gone when method == HttpMethod.Get && relativeUrl.Contains("syncToken=", StringComparison.Ordinal):
                     throw new SyncTokenExpiredException(error.Message);
 
                 case HttpStatusCode.Unauthorized when !refreshed:
@@ -59,7 +75,7 @@ internal sealed class GoogleCalendarApi(
                     throw new AccountSignInRequiredException($"Google rejected the account's access: {error.Message}");
             }
 
-            if (error.IsRetryable && attempt < MaxAttempts)
+            if (error.IsRetryable && (idempotent || error.IsRateLimit) && attempt < MaxAttempts)
             {
                 var wait = TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)) + TimeSpan.FromMilliseconds(Random.Shared.Next(250));
                 logger.LogInformation("Google API {Status} ({Reason}); retrying in {Wait}", (int)response.StatusCode, error.Reason, wait);
@@ -74,10 +90,11 @@ internal sealed class GoogleCalendarApi(
     /// <summary>The "error" object of a Google API error response.</summary>
     internal sealed record GoogleApiError(HttpStatusCode Status, string? Reason, string Message)
     {
-        public bool IsRetryable =>
+        public bool IsRateLimit =>
             Status == HttpStatusCode.TooManyRequests
-            || (int)Status >= 500
             || (Status == HttpStatusCode.Forbidden && Reason is "rateLimitExceeded" or "userRateLimitExceeded");
+
+        public bool IsRetryable => IsRateLimit || (int)Status >= 500;
 
         public static GoogleApiError Parse(HttpStatusCode status, string body)
         {

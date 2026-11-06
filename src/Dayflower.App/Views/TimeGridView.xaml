@@ -17,7 +17,7 @@
         <Grid
             x:Name="AllDayRow"
             Grid.Row="1"
-            MinHeight="8"
+            MinHeight="20"
             Padding="0,0,0,4"
             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
             BorderThickness="0,0,0,1" />

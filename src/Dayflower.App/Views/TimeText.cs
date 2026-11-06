@@ -15,7 +15,7 @@ internal static class TimeText
 {
     private static readonly CultureInfo Names = CultureInfo.CurrentUICulture;
     private static readonly bool Uses24Hour = CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern.Contains('H', StringComparison.Ordinal);
-    private static readonly bool DayBeforeMonth = DayFirst(CultureInfo.CurrentCulture.DateTimeFormat.ShortDatePattern);
+    public static readonly bool DayBeforeMonth = DayFirst(CultureInfo.CurrentCulture.DateTimeFormat.ShortDatePattern);
 
     public static string Time(DateTime t) => Uses24Hour
         ? t.ToString("HH:mm", CultureInfo.InvariantCulture)

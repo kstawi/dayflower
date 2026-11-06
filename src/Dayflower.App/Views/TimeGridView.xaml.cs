@@ -8,6 +8,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 
@@ -53,6 +54,15 @@ public sealed partial class TimeGridView : UserControl
 
     public event EventHandler<DateOnly>? DayClicked;
 
+    /// <summary>Raised when the user clicks or drags over empty time, to create an event there.</summary>
+    public event EventHandler<SlotSelectedEventArgs>? SlotSelected;
+
+    /// <summary>Raised when the user drags an event to a new time or drags its bottom edge.</summary>
+    public event EventHandler<ItemMovedEventArgs>? ItemMoved;
+
+    /// <summary>Whether an event can be dragged (the user may edit it, and the app is online).</summary>
+    public Func<CalendarItem, bool> CanMove { get; set; } = _ => false;
+
     /// <summary>Raised when the Join button on an event is clicked.</summary>
     public event EventHandler<CalendarItem>? JoinClicked;
 
@@ -75,6 +85,11 @@ public sealed partial class TimeGridView : UserControl
 
     private void Build()
     {
+        // A rebuild drops any drag or new-event outline with the old elements.
+        _press = null;
+        _selection = null;
+        _selecting = false;
+
         foreach (var grid in new[] { HeaderRow, AllDayRow, Body })
         {
             grid.Children.Clear();
@@ -170,6 +185,21 @@ public sealed partial class TimeGridView : UserControl
             AllDayRow.RowDefinitions.Add(new RowDefinition { Height = new GridLength(AllDayRowHeight) });
         }
 
+        // Clicking empty space in a day's all-day area starts an all-day event on that day.
+        for (int i = 0; i < _days.Count; i++)
+        {
+            var day = _days[i];
+            var empty = new Border { Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent), MinHeight = 20 };
+            Grid.SetColumn(empty, i + 1);
+            Grid.SetRowSpan(empty, Math.Max(1, laneCount));
+            empty.Tapped += (_, _) =>
+            {
+                ClearSelection();
+                SlotSelected?.Invoke(this, new SlotSelectedEventArgs(empty, day.ToDateTime(TimeOnly.MinValue), day.AddDays(1).ToDateTime(TimeOnly.MinValue), true));
+            };
+            AllDayRow.Children.Add(empty);
+        }
+
         foreach (var placement in lanes)
         {
             var (item, firstDay, lastDay) = allDay[placement.Index];
@@ -231,12 +261,17 @@ public sealed partial class TimeGridView : UserControl
             Grid.SetColumn(separator, i + 1);
             Body.Children.Add(separator);
 
-            var layer = new Grid { Margin = new Thickness(2, 0, 6, 0) };
+            // A transparent background makes the empty time clickable: click or drag there to create an event.
+            var layer = new Grid { Margin = new Thickness(2, 0, 6, 0), Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
             Grid.SetColumn(layer, i + 1);
             Body.Children.Add(layer);
             _dayLayers.Add(layer);
             int dayIndex = i;
             layer.SizeChanged += (_, _) => PositionBlocks(dayIndex);
+            layer.PointerPressed += (_, e) => Layer_PointerPressed(dayIndex, layer, e);
+            layer.PointerMoved += (_, e) => Layer_PointerMoved(layer, e);
+            layer.PointerReleased += (_, e) => Layer_PointerReleased(layer, e);
+            layer.PointerCaptureLost += (_, _) => _selecting = false;
 
             AddDayEvents(i, layer);
         }
@@ -269,14 +304,40 @@ public sealed partial class TimeGridView : UserControl
                 ? EventVisuals.Block(item, TimeText.Time(item.Span.Start), singleLine: true, ActualTheme, OnItemClicked, inset)
                 : EventVisuals.Block(item, TimeText.TimeRange(item.Span.Start, item.Span.End), singleLine: false, ActualTheme, OnItemClicked, inset);
 
-            // The Join button sits on top of the block, not inside it, so the two stay separate buttons.
+            // The Join button sits on top of the block, not inside it, so the two stay separate buttons; so does the
+            // grip for dragging the end.
             FrameworkElement host = block;
-            if (joinable)
+            bool movable = CanMove(item);
+            if (joinable || movable)
             {
                 var grid = new Grid();
                 grid.Children.Add(block);
-                grid.Children.Add(JoinButton(item, compact: isShort));
+                if (joinable)
+                {
+                    grid.Children.Add(JoinButton(item, compact: isShort));
+                }
+
+                if (movable)
+                {
+                    var grip = new ResizeGrip();
+                    grip.PointerPressed += (_, e) => BeginPress(item, grid, e, resize: true);
+                    grip.PointerMoved += (_, e) => ContinuePress(e);
+                    grip.PointerReleased += (_, e) => EndPress(e);
+                    grip.PointerCaptureLost += (_, _) => CancelPress();
+                    grid.Children.Add(grip);
+                }
+
                 host = grid;
+            }
+
+            if (movable)
+            {
+                // Buttons handle pointer presses themselves, so the drag listens to handled events too.
+                var target = host;
+                block.AddHandler(PointerPressedEvent, new PointerEventHandler((_, e) => BeginPress(item, target, e, resize: false)), true);
+                block.AddHandler(PointerMovedEvent, new PointerEventHandler((_, e) => ContinuePress(e)), true);
+                block.AddHandler(PointerReleasedEvent, new PointerEventHandler((_, e) => EndPress(e)), true);
+                block.AddHandler(PointerCaptureLostEvent, new PointerEventHandler((_, _) => CancelPress()), true);
             }
 
             host.HorizontalAlignment = HorizontalAlignment.Left;
@@ -385,7 +446,341 @@ public sealed partial class TimeGridView : UserControl
         Body.Children.Add(element);
     }
 
-    private void OnItemClicked(FrameworkElement anchor, CalendarItem item) => ItemClicked?.Invoke(this, new ItemClickedEventArgs(anchor, item));
+    private void OnItemClicked(FrameworkElement anchor, CalendarItem item)
+    {
+        // The click that ends a drag isn't a click.
+        if (_press is { Dragging: true } || Environment.TickCount64 - _dragEndedAt < 400)
+        {
+            return;
+        }
+
+        ItemClicked?.Invoke(this, new ItemClickedEventArgs(anchor, item));
+    }
+
+    // ---- Creating by clicking or dragging over empty time -----------------------------------------------------
+
+    private const double SnapMinutes = 15;
+    private const double DragThreshold = 6;
+
+    private Border? _selection;
+    private bool _selecting;
+    private bool _selectionMoved;
+    private int _selectionDay;
+    private double _selectionAnchor;
+    private (double From, double To) _selectionRange;
+
+    /// <summary>Removes the outline of a new event's time (when its flyout closes).</summary>
+    public void ClearSelection()
+    {
+        if (_selection?.Parent is Panel panel)
+        {
+            panel.Children.Remove(_selection);
+        }
+
+        _selection = null;
+    }
+
+    private static double Snap(double minutes, Func<double, double> round) => round(minutes / SnapMinutes) * SnapMinutes;
+
+    private void Layer_PointerPressed(int dayIndex, Grid layer, PointerRoutedEventArgs e)
+    {
+        var point = e.GetCurrentPoint(layer);
+        if (!point.Properties.IsLeftButtonPressed || !e.OriginalSource.Equals(layer))
+        {
+            return;
+        }
+
+        ClearSelection();
+        _selecting = true;
+        _selectionMoved = false;
+        _selectionDay = dayIndex;
+        _selectionAnchor = Math.Clamp(Snap(point.Position.Y / HourHeight * 60, Math.Floor), 0, 24 * 60 - SnapMinutes);
+        _selectionRange = (_selectionAnchor, _selectionAnchor + SnapMinutes);
+        _selection = new Border
+        {
+            Background = EventVisuals.Tint(((SolidColorBrush)ThemeBrush("AccentFillColorDefaultBrush")).Color, 0x55),
+            BorderBrush = ThemeBrush("AccentFillColorDefaultBrush"),
+            BorderThickness = new Thickness(2),
+            CornerRadius = new CornerRadius(4),
+            VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false,
+            Child = new TextBlock { FontSize = 12, Margin = new Thickness(6, 2, 4, 0), TextTrimming = TextTrimming.CharacterEllipsis },
+        };
+        Canvas.SetZIndex(_selection, 50);
+        layer.Children.Add(_selection);
+        UpdateSelection();
+        layer.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void Layer_PointerMoved(Grid layer, PointerRoutedEventArgs e)
+    {
+        if (!_selecting)
+        {
+            return;
+        }
+
+        double minutes = Math.Clamp(Snap(e.GetCurrentPoint(layer).Position.Y / HourHeight * 60, Math.Round), 0, 24 * 60);
+        var range = minutes <= _selectionAnchor
+            ? (Math.Min(minutes, _selectionAnchor), _selectionAnchor + SnapMinutes)
+            : (_selectionAnchor, Math.Max(minutes, _selectionAnchor + SnapMinutes));
+        if (range != _selectionRange)
+        {
+            _selectionMoved = true;
+            _selectionRange = range;
+            UpdateSelection();
+        }
+    }
+
+    private void Layer_PointerReleased(Grid layer, PointerRoutedEventArgs e)
+    {
+        if (!_selecting)
+        {
+            return;
+        }
+
+        _selecting = false;
+        layer.ReleasePointerCapture(e.Pointer);
+
+        // A click makes an hour-long event, as in Google Calendar; a drag the time dragged over.
+        if (!_selectionMoved)
+        {
+            _selectionRange = (_selectionAnchor, Math.Min(24 * 60, _selectionAnchor + 60));
+            UpdateSelection();
+        }
+
+        var day = _days[_selectionDay].ToDateTime(TimeOnly.MinValue);
+        SlotSelected?.Invoke(this, new SlotSelectedEventArgs(
+            _selection!, day.AddMinutes(_selectionRange.From), day.AddMinutes(_selectionRange.To), false));
+        e.Handled = true;
+    }
+
+    private void UpdateSelection()
+    {
+        if (_selection is null)
+        {
+            return;
+        }
+
+        var day = _days[_selectionDay].ToDateTime(TimeOnly.MinValue);
+        _selection.Margin = new Thickness(0, _selectionRange.From / 60 * HourHeight + 1, 0, 0);
+        _selection.Height = Math.Max(12, (_selectionRange.To - _selectionRange.From) / 60 * HourHeight - 2);
+        ((TextBlock)_selection.Child).Text = TimeText.TimeRange(day.AddMinutes(_selectionRange.From), day.AddMinutes(_selectionRange.To));
+    }
+
+    // ---- Moving and resizing events ---------------------------------------------------------------------------
+
+    /// <summary>An event being pressed on: it becomes a drag once the pointer moves far enough.</summary>
+    private sealed class Press
+    {
+        public required CalendarItem Item { get; init; }
+
+        public required FrameworkElement Host { get; init; }
+
+        public required Windows.Foundation.Point Start { get; init; }
+
+        public required bool Resize { get; init; }
+
+        public bool Dragging { get; set; }
+
+        public Border? Ghost { get; set; }
+
+        public DateTime NewStart { get; set; }
+
+        public DateTime NewEnd { get; set; }
+    }
+
+    private Press? _press;
+    private long _dragEndedAt;
+
+    /// <summary>Puts a dragged event back where it was (when the change is cancelled or fails).</summary>
+    public void CancelDrag()
+    {
+        if (_press is { } press)
+        {
+            press.Host.Opacity = 1;
+            if (press.Ghost?.Parent is Panel panel)
+            {
+                panel.Children.Remove(press.Ghost);
+            }
+        }
+
+        _press = null;
+    }
+
+    private void BeginPress(CalendarItem item, FrameworkElement host, PointerRoutedEventArgs e, bool resize)
+    {
+        var point = e.GetCurrentPoint(Body);
+        if (!point.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        CancelDrag();
+        _press = new Press { Item = item, Host = host, Start = point.Position, Resize = resize, NewStart = item.Span.Start, NewEnd = item.Span.End };
+        if (resize)
+        {
+            ((UIElement)e.OriginalSource).CapturePointer(e.Pointer);
+            e.Handled = true;
+        }
+    }
+
+    private void ContinuePress(PointerRoutedEventArgs e)
+    {
+        if (_press is not { } press)
+        {
+            return;
+        }
+
+        var position = e.GetCurrentPoint(Body).Position;
+        if (!press.Dragging)
+        {
+            if (Math.Abs(position.X - press.Start.X) < DragThreshold && Math.Abs(position.Y - press.Start.Y) < DragThreshold)
+            {
+                return;
+            }
+
+            press.Dragging = true;
+            press.Host.Opacity = 0.4;
+            press.Ghost = Ghost(press.Item);
+            Body.Children.Add(press.Ghost);
+        }
+
+        var span = press.Item.Span;
+        if (press.Resize)
+        {
+            // The end follows the pointer, on whichever day it is, at least 15 minutes after the start.
+            var end = DayAt(position.X).ToDateTime(TimeOnly.MinValue).AddMinutes(Snap(position.Y / HourHeight * 60, Math.Round));
+            press.NewStart = span.Start;
+            press.NewEnd = end < span.Start.AddMinutes(SnapMinutes) ? span.Start.AddMinutes(SnapMinutes) : end;
+        }
+        else
+        {
+            int days = DayAt(position.X).DayNumber - DayAt(press.Start.X).DayNumber;
+            double minutes = Snap((position.Y - press.Start.Y) / HourHeight * 60, Math.Round);
+            var shift = TimeSpan.FromDays(days) + TimeSpan.FromMinutes(minutes);
+            press.NewStart = span.Start + shift;
+            press.NewEnd = span.End + shift;
+        }
+
+        PlaceGhost(press);
+    }
+
+    private void EndPress(PointerRoutedEventArgs e)
+    {
+        if (_press is not { } press)
+        {
+            return;
+        }
+
+        if (press.Resize && e.OriginalSource is UIElement source)
+        {
+            source.ReleasePointerCapture(e.Pointer);
+        }
+
+        if (!press.Dragging)
+        {
+            _press = null;
+            return;
+        }
+
+        _dragEndedAt = Environment.TickCount64;
+        press.Dragging = false;
+        if (press.NewStart == press.Item.Span.Start && press.NewEnd == press.Item.Span.End)
+        {
+            CancelDrag();
+            return;
+        }
+
+        // The ghost stays until the views reload with the change, or the change is cancelled.
+        ItemMoved?.Invoke(this, new ItemMovedEventArgs(press.Item, press.NewStart, press.NewEnd));
+        e.Handled = true;
+    }
+
+    /// <summary>
+    /// The pointer capture was lost. A button gives up its capture just before its PointerReleased reaches the drag,
+    /// so this waits to see whether the release follows; only a capture lost for another reason (switching windows
+    /// mid-drag) cancels the drag.
+    /// </summary>
+    private void CancelPress()
+    {
+        var press = _press;
+        if (press is null)
+        {
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            if (_press != press)
+            {
+                return;
+            }
+
+            if (press.Dragging)
+            {
+                _dragEndedAt = Environment.TickCount64;
+                CancelDrag();
+            }
+            else if (press.Ghost is null)
+            {
+                // A press on the grip that never became a drag.
+                _press = null;
+            }
+        });
+    }
+
+    private DateOnly DayAt(double x)
+    {
+        double columns = Math.Max(1, (Body.ActualWidth - GutterWidth) / Math.Max(1, _days.Count));
+        int index = Math.Clamp((int)Math.Floor((x - GutterWidth) / columns), 0, Math.Max(0, _days.Count - 1));
+        return _days[index];
+    }
+
+    private Border Ghost(CalendarItem item)
+    {
+        var ghost = new Border
+        {
+            Background = EventVisuals.Tint(item.Color, 0x99),
+            BorderBrush = new SolidColorBrush(item.Color),
+            BorderThickness = new Thickness(3, 0, 0, 0),
+            CornerRadius = new CornerRadius(4),
+            VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false,
+            Margin = new Thickness(2, 0, 6, 0),
+            Child = new StackPanel
+            {
+                Padding = new Thickness(6, 2, 4, 0),
+                Children =
+                {
+                    new TextBlock { Text = item.Title, FontSize = 12, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
+                    new TextBlock { FontSize = 11, TextTrimming = TextTrimming.CharacterEllipsis },
+                },
+            },
+        };
+        Canvas.SetZIndex(ghost, 60);
+        return ghost;
+    }
+
+    private void PlaceGhost(Press press)
+    {
+        var ghost = press.Ghost!;
+        var day = DateOnly.FromDateTime(press.NewStart);
+        int index = _days.ToList().IndexOf(day);
+        ghost.Visibility = index < 0 ? Visibility.Collapsed : Visibility.Visible;
+        if (index < 0)
+        {
+            return;
+        }
+
+        double top = press.NewStart.TimeOfDay.TotalHours * HourHeight;
+        double bottom = Math.Min(24, (press.NewEnd - day.ToDateTime(TimeOnly.MinValue)).TotalHours) * HourHeight;
+        Grid.SetColumn(ghost, index + 1);
+        ghost.Margin = new Thickness(2, top + 1, 6, 0);
+        ghost.Height = Math.Max(14, bottom - top - 2);
+        var lines = ((StackPanel)ghost.Child).Children;
+        ((TextBlock)lines[1]).Text = TimeText.TimeRange(press.NewStart, press.NewEnd);
+    }
 
     private Brush ThemeBrush(string key) => EventVisuals.ThemeResource<Brush>(key, ActualTheme);
 }

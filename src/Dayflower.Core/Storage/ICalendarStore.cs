@@ -45,10 +45,19 @@ public interface ICalendarStore
     Task ApplyEventChangesAsync(string accountId, string calendarId, EventChangeSet changes, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Applies the changes an edit made, so they show before the next sync. The sync token stays as it is, so the
+    /// next sync still brings everything that changed since, including these edits.
+    /// </summary>
+    Task ApplyLocalChangesAsync(string accountId, string calendarId, IReadOnlyList<EventChange> changes, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Events that may appear between <paramref name="from"/> and <paramref name="to"/>: events overlapping the
     /// range, plus every repeating series that may have occurrences in it. Callers filter precisely.
     /// </summary>
     Task<IReadOnlyList<StoredEvent>> GetEventsAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
+
+    /// <summary>One cached event, or null if it isn't there.</summary>
+    Task<StoredEvent?> GetEventAsync(EventKey key, CancellationToken cancellationToken = default);
 
     /// <summary>The changed and cancelled occurrences of one series.</summary>
     Task<IReadOnlyList<StoredEvent>> GetOccurrenceOverridesAsync(EventKey series, CancellationToken cancellationToken = default);

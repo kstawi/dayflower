@@ -224,7 +224,11 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <Button IsEnabled="False" Style="{StaticResource AccentButtonStyle}">
+                    <Button
+                        x:Name="NewEventButton"
+                        Click="NewEventButton_Click"
+                        IsEnabled="{x:Bind Accounts.HasAccounts, Mode=OneWay}"
+                        Style="{StaticResource AccentButtonStyle}">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <FontIcon FontSize="14" Glyph="&#xE710;" />
                             <TextBlock Text="New event" />
@@ -276,13 +280,23 @@
                     </SelectorBar>
                 </Grid>
 
+                <!-- Shows while a change is on its way to Google. -->
+                <ProgressBar
+                    x:Name="SavingBar"
+                    Margin="16,0,16,0"
+                    VerticalAlignment="Bottom"
+                    IsIndeterminate="True"
+                    Visibility="Collapsed" />
+
                 <views:TimeGridView
                     x:Name="TimeGrid"
                     Grid.Row="1"
                     Margin="8,0,8,0"
                     DayClicked="View_DayClicked"
                     ItemClicked="View_ItemClicked"
+                    ItemMoved="View_ItemMoved"
                     JoinClicked="View_JoinClicked"
+                    SlotSelected="View_SlotSelected"
                     Visibility="Collapsed" />
 
                 <views:MonthView

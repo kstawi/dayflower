@@ -134,10 +134,69 @@ public sealed record CalendarEvent
 
     public DateTimeOffset? Updated { get; init; }
 
+    /// <summary>Whether guests may change the event (Google's "Modify event" guest permission).</summary>
+    public bool GuestsCanModify { get; init; }
+
+    public bool GuestsCanInviteOthers { get; init; } = true;
+
+    public bool GuestsCanSeeOtherGuests { get; init; } = true;
+
+    /// <summary>Out of office, focus time and working location details, for those kinds of event.</summary>
+    public WorkspaceDetails? Workspace { get; init; }
+
     public bool IsSeries => Recurrence.Count > 0;
 
     public bool IsOccurrenceOverride => RecurringEventId is not null;
 
     /// <summary>The signed-in user's own attendee entry, if they're invited.</summary>
     public Attendee? Self => Attendees.FirstOrDefault(a => a.IsSelf);
+
+    /// <summary>Whether the user organises the event (or it has no organiser, like most of their own events).</summary>
+    public bool IsMine => Organizer is null || Organizer.IsSelf || Self?.IsOrganizer == true;
+
+    /// <summary>
+    /// Whether the user can change the event in a calendar where they have <paramref name="access"/>: they need
+    /// write access, and for someone else's invitation the organiser has to let guests modify it. The calendar
+    /// itself can be the organiser of events on a shared calendar.
+    /// </summary>
+    public bool CanEdit(CalendarAccess access) =>
+        CanDelete(access) || (access >= CalendarAccess.Writer && GuestsCanModify && IsEditableKind);
+
+    /// <summary>
+    /// Whether the user can delete the event outright: their own event, or one the calendar itself organises, in a
+    /// calendar they can write to. Someone else's invitation is declined instead.
+    /// </summary>
+    public bool CanDelete(CalendarAccess access) =>
+        access >= CalendarAccess.Writer && IsEditableKind
+        && (IsMine || string.Equals(Organizer?.Email, Key.CalendarId, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Birthdays and events Gmail made from emails are managed by Google, not edited directly.</summary>
+    private bool IsEditableKind => Kind is not (EventKind.Birthday or EventKind.FromGmail);
+
+    /// <summary>Whether the user is a guest who can answer the invitation.</summary>
+    public bool CanRespond => Self is { IsOrganizer: false } && Status != EventStatus.Cancelled;
+
+    /// <summary>The other people invited, leaving out the user and rooms.</summary>
+    public IEnumerable<Attendee> OtherGuests => Attendees.Where(a => !a.IsSelf && !a.IsResource);
 }
+
+public enum AutoDeclineMode
+{
+    None,
+    NewInvitations,
+    AllConflicting,
+}
+
+public enum WorkingLocationType
+{
+    Home,
+    Office,
+    Custom,
+}
+
+/// <summary>The settings of Google Workspace's special event kinds.</summary>
+public sealed record WorkspaceDetails(
+    AutoDeclineMode AutoDecline = AutoDeclineMode.None,
+    string? DeclineMessage = null,
+    WorkingLocationType? Location = null,
+    string? LocationLabel = null);
