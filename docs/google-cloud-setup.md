@@ -28,8 +28,17 @@ This is what people see when Dayflower asks for access to their calendar. It liv
    - **Audience:** **External**, so Gmail and Workspace accounts from any organisation can sign in
    - **Contact information:** your email
 2. Agree to Google's API Services User Data Policy and finish.
-3. **Data access:** nothing to add yet. Phase 1 adds the calendar permissions here, once it's clear which ones
-   Dayflower needs.
+3. **Data access:** click **Add or remove scopes**, paste these into **Manually add scopes**, click **Add to table**,
+   then **Update** and **Save**:
+
+   ```
+   openid
+   https://www.googleapis.com/auth/userinfo.email
+   https://www.googleapis.com/auth/userinfo.profile
+   https://www.googleapis.com/auth/calendar.calendarlist.readonly
+   https://www.googleapis.com/auth/calendar.events
+   https://www.googleapis.com/auth/calendar.events.freebusy
+   ```
 
 ## 4. Publish the app
 

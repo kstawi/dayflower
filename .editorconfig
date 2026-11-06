@@ -29,3 +29,7 @@ dotnet_naming_symbols.private_fields.applicable_kinds = field
 dotnet_naming_symbols.private_fields.applicable_accessibilities = private
 dotnet_naming_style.underscore_camel_case.capitalization = camel_case
 dotnet_naming_style.underscore_camel_case.required_prefix = _
+
+[tests/**/*.cs]
+# Tests run to completion quickly; passing TestContext.Current.CancellationToken to every call adds only noise.
+dotnet_diagnostic.xUnit1051.severity = none

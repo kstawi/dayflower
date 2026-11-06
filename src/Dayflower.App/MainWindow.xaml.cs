@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Dayflower.Core.Calendar;
+using Dayflower.Services;
 using Dayflower.ViewModels;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -22,17 +23,22 @@ public sealed partial class MainWindow : Window
     private const int MinimumWidth = 760;
     private const int MinimumHeight = 520;
 
+    private readonly AppServices _services;
+
     // Set while the window updates the mini month or view switcher itself, so their change events don't loop back.
     private bool _updatingControls;
 
-    public MainWindow()
+    public MainWindow(AppServices services)
     {
+        _services = services;
+
         // Week start comes from Windows' regional settings (Settings > Time & language > Language & region).
         var weekStart = GlobalizationPreferences.WeekStartsOn;
         ViewModel = new ShellViewModel(
             new PeriodTitleFormatter(CultureInfo.CurrentUICulture, CultureInfo.CurrentCulture),
             () => DateOnly.FromDateTime(DateTime.Now),
             (DayOfWeek)(int)weekStart);
+        Accounts = new AccountsViewModel(services) { ConfirmAsync = ConfirmAsync };
 
         InitializeComponent();
 
@@ -44,9 +50,36 @@ public sealed partial class MainWindow : Window
         MiniMonth.FirstDayOfWeek = weekStart;
         ViewModel.PropertyChanged += ViewModel_PropertyChanged;
         UpdateControlsFromPeriod();
+
+        Activated += (_, args) =>
+        {
+            if (args.WindowActivationState != WindowActivationState.Deactivated)
+            {
+                _services.Sync.OnWindowActivated();
+            }
+        };
+        _ = Accounts.LoadAsync();
     }
 
     public ShellViewModel ViewModel { get; }
+
+    public AccountsViewModel Accounts { get; }
+
+    public static bool Not(bool value) => !value;
+
+    private async Task<bool> ConfirmAsync(string title, string text, string confirm)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = text,
+            PrimaryButtonText = confirm,
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = Content.XamlRoot,
+        };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
 
     private void SizeAndCenter()
     {

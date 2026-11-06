@@ -4,8 +4,8 @@ A Windows 11 calendar app that shows several Google accounts in one calendar, pu
 video meeting, and raises desktop reminders that match the reminders set in Google Calendar. It's built to look
 like part of Windows 11, starts with Google, and leaves room for Microsoft 365, iCloud, CalDAV and ICS later.
 
-Status: agreed in the planning interview on 2026-11-06. Phase 0 (setup) is in place apart from the Google Cloud
-project, which follows [google-cloud-setup.md](google-cloud-setup.md). Phase 1 is next.
+Status: agreed in the planning interview on 2026-11-06. Phases 0 (setup) and 1 (accounts and sync) are done;
+phase 2 (calendar views) is next.
 
 ## 1. Decisions
 
@@ -167,6 +167,8 @@ dayflower/
     Dayflower.Storage.Tests/
     Dayflower.Providers.Google.Tests/   mapping tests against recorded API responses
     Dayflower.App.UITests/              a few UI automation smoke tests (FlaUI)
+  tools/
+    Dayflower.DevTool/                  dayflower-dev: cache statistics, one-off sync, recurrence audit
   docs/
   .github/workflows/
 ```
@@ -176,11 +178,12 @@ dayflower/
 | Need | Choice |
 |---|---|
 | UI | Windows App SDK (WinUI 3), CommunityToolkit.WinUI (setting cards, segmented control) |
-| MVVM, DI | CommunityToolkit.Mvvm, Microsoft.Extensions.Hosting |
+| MVVM | CommunityToolkit.Mvvm; services are composed by hand in `AppServices` (no DI container needed yet) |
 | Tray icon | H.NotifyIcon.WinUI (WinUI 3 has no built-in tray icon) |
-| Google | Google.Apis.Calendar.v3, Google.Apis.Auth |
+| Google | The Calendar REST API called directly with HttpClient and System.Text.Json, plus Dayflower's own OAuth flow (loopback + PKCE). Chosen over Google's .NET client libraries in phase 1: lighter, and the tests feed Google-shaped JSON into the same code the app runs. |
 | Cache and search | Microsoft.Data.Sqlite with SQLite FTS5 |
-| Recurrence | Ical.Net (RRULE expansion), if the sync spike chooses local expansion |
+| Recurrence | Ical.Net (RRULE expansion) |
+| Saved sign-ins | Windows DPAPI (System.Security.Cryptography.ProtectedData) |
 | Notifications | Windows App SDK app notifications (toasts with buttons and a snooze picker) |
 | Logging | Serilog to a rolling file in the app's local folder |
 | Tests | xUnit; FlaUI for UI smoke tests |
@@ -201,9 +204,15 @@ Join rely on.
 - Per account: calendar list and colour palette. Per calendar: events, with Google's sync token for incremental
   updates; a full resync when Google says the token has expired.
 - Back-off and retry on rate limits and network errors; one failing calendar or account doesn't block the others.
-- **Spike first (phase 1):** recurring events can be cached either as series + exceptions expanded locally (works
-  for any date, needs correct RRULE and time-zone handling) or as Google-expanded instances for a rolling window
-  (simpler, but bounded and heavier on sync). The spike tests both against real accounts and picks one.
+- **Repeating events (decided in phase 1):** cached as series plus their changed and cancelled occurrences
+  (Google's `singleEvents=false`), and expanded on the PC in the event's own time zone. This works for any date
+  range and keeps sync small. Checked against Google's own expansion on a real Workspace calendar with the dev
+  tool's recurrence audit: 373 of 373 occurrences matched from March 2026 to April 2027, across three clock changes
+  and 291 changed or cancelled occurrences.
+- Events are cached as Google's JSON plus a few indexed columns (time range, series, iCalendar UID); the model is
+  rebuilt from the JSON when read, so mapping improvements apply without a resync.
+- Some calendars (certain Google holiday calendars) expire their sync token on every request; those are fully
+  refreshed at most every 6 hours instead of every 2 minutes.
 
 ### 3.5 Reminder scheduler
 
@@ -218,9 +227,10 @@ Join rely on.
 Done once, in the Google Cloud console under your personal Google account (I'll guide this step by step):
 
 1. Create a project "Dayflower" and enable the Google Calendar API.
-2. OAuth consent screen: type External, app name, support email, and the calendar scopes. Phase 1 settles the
-   narrowest set that covers every feature (Google now has narrower Calendar scopes than the full "calendar" one,
-   and verification goes more smoothly with them).
+2. OAuth consent screen: type External, app name, support email, and the calendar scopes. Settled in phase 1 as
+   the narrowest set that covers every planned feature: `calendar.calendarlist.readonly` (calendar list),
+   `calendar.events` (read and edit events, RSVP, Meet links) and `calendar.events.freebusy` (guest availability,
+   optional at sign-in), plus `openid`, `email` and `profile`.
 3. Create an OAuth client of type **Desktop app**.
 4. **Publish the app to "In production" straight away**, even unverified. In "Testing" status Google expires sign-ins
    after 7 days. Unverified, each person clicks through an "unverified app" warning once, and there's a 100-user cap

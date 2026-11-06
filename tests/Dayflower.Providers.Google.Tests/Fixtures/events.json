@@ -1,0 +1,105 @@
+{
+  "kind": "calendar#events",
+  "summary": "me@example.com",
+  "timeZone": "Europe/Warsaw",
+  "accessRole": "owner",
+  "defaultReminders": [ { "method": "popup", "minutes": 10 } ],
+  "nextSyncToken": "sync-abc",
+  "items": [
+    {
+      "kind": "calendar#event",
+      "etag": "\"3400000000000000\"",
+      "id": "meeting",
+      "status": "confirmed",
+      "htmlLink": "https://www.google.com/calendar/event?eid=bWVldGluZw",
+      "created": "2026-10-01T10:00:00.000Z",
+      "updated": "2026-10-02T11:30:00.000Z",
+      "summary": "Design review",
+      "description": "Agenda: <b>prototype</b>",
+      "location": "Room 4",
+      "colorId": "5",
+      "creator": { "email": "boss@example.com" },
+      "organizer": { "email": "boss@example.com", "displayName": "Boss" },
+      "start": { "dateTime": "2026-11-06T10:00:00+01:00", "timeZone": "Europe/Warsaw" },
+      "end": { "dateTime": "2026-11-06T11:00:00+01:00", "timeZone": "Europe/Warsaw" },
+      "iCalUID": "meeting@google.com",
+      "sequence": 0,
+      "attendees": [
+        { "email": "boss@example.com", "displayName": "Boss", "organizer": true, "responseStatus": "accepted" },
+        { "email": "me@example.com", "self": true, "responseStatus": "needsAction" },
+        { "email": "room4@resource.example.com", "resource": true, "responseStatus": "accepted" },
+        { "email": "ana@example.com", "optional": true, "responseStatus": "tentative", "comment": "Might be late" }
+      ],
+      "hangoutLink": "https://meet.google.com/abc-defg-hij",
+      "conferenceData": {
+        "entryPoints": [
+          { "entryPointType": "video", "uri": "https://meet.google.com/abc-defg-hij", "label": "meet.google.com/abc-defg-hij" },
+          { "entryPointType": "phone", "uri": "tel:+48-22-000-0000", "label": "+48 22 000 0000", "pin": "123456789" }
+        ],
+        "conferenceSolution": { "key": { "type": "hangoutsMeet" }, "name": "Google Meet" },
+        "conferenceId": "abc-defg-hij"
+      },
+      "reminders": { "useDefault": false, "overrides": [ { "method": "popup", "minutes": 5 }, { "method": "email", "minutes": 60 } ] },
+      "eventType": "default"
+    },
+    {
+      "kind": "calendar#event",
+      "id": "allday",
+      "status": "confirmed",
+      "summary": "Conference",
+      "start": { "date": "2026-11-09" },
+      "end": { "date": "2026-11-11" },
+      "transparency": "transparent",
+      "iCalUID": "allday@google.com",
+      "reminders": { "useDefault": true },
+      "eventType": "default"
+    },
+    {
+      "kind": "calendar#event",
+      "id": "series",
+      "status": "confirmed",
+      "summary": "Standup",
+      "start": { "dateTime": "2026-11-02T09:00:00+01:00", "timeZone": "Europe/Warsaw" },
+      "end": { "dateTime": "2026-11-02T09:15:00+01:00", "timeZone": "Europe/Warsaw" },
+      "recurrence": [ "EXDATE;TZID=Europe/Warsaw:20261125T090000", "RRULE:FREQ=WEEKLY;BYDAY=MO,WE" ],
+      "iCalUID": "series@google.com",
+      "reminders": { "useDefault": true },
+      "eventType": "default"
+    },
+    {
+      "kind": "calendar#event",
+      "id": "series_20261111T080000Z",
+      "status": "confirmed",
+      "summary": "Standup (moved)",
+      "start": { "dateTime": "2026-11-11T11:00:00+01:00", "timeZone": "Europe/Warsaw" },
+      "end": { "dateTime": "2026-11-11T11:15:00+01:00", "timeZone": "Europe/Warsaw" },
+      "recurringEventId": "series",
+      "originalStartTime": { "dateTime": "2026-11-11T09:00:00+01:00", "timeZone": "Europe/Warsaw" },
+      "iCalUID": "series@google.com",
+      "eventType": "default"
+    },
+    {
+      "kind": "calendar#event",
+      "id": "series_20261118T080000Z",
+      "status": "cancelled",
+      "recurringEventId": "series",
+      "originalStartTime": { "dateTime": "2026-11-18T09:00:00+01:00", "timeZone": "Europe/Warsaw" }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "ooo",
+      "status": "confirmed",
+      "summary": "Out of office",
+      "visibility": "private",
+      "start": { "dateTime": "2026-11-20T00:00:00+01:00", "timeZone": "Europe/Warsaw" },
+      "end": { "dateTime": "2026-11-21T00:00:00+01:00", "timeZone": "Europe/Warsaw" },
+      "eventType": "outOfOffice",
+      "outOfOfficeProperties": { "autoDeclineMode": "declineAllConflictingInvitations", "declineMessage": "Away" }
+    },
+    {
+      "kind": "calendar#event",
+      "id": "deleted",
+      "status": "cancelled"
+    }
+  ]
+}

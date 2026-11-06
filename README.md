@@ -38,7 +38,15 @@ Signing in to Google needs an OAuth client of your own in local builds: see
 | `src/Dayflower.Storage` | Local cache, search index and settings |
 | `src/Dayflower.Providers.Google` | Google sign-in and the Google Calendar API |
 | `tests/` | Unit tests |
+| `tools/Dayflower.DevTool` | `dayflower-dev`: cache statistics, a one-off sync, and an audit of repeating events against Google |
 | `tools/MakeAssets.ps1` | Draws the placeholder logo at every size the package needs |
+
+For example, after signing in with the app:
+
+```powershell
+dotnet run --project tools/Dayflower.DevTool -- stats
+dotnet run --project tools/Dayflower.DevTool -- audit --days 180
+```
 
 ## Licence
 
