@@ -27,10 +27,11 @@ if ($devMode.AllowDevelopmentWithoutDevLicense -ne 1) {
     throw 'Developer Mode is off. Switch it on in Settings > System > Advanced > For developers, then run this again.'
 }
 
-# The installed development build runs straight from the build output, so close it before rebuilding.
+# The installed development build runs straight from the build output, so stop it before rebuilding. (Closing
+# its window only hides it to the notification area.)
 Get-Process -Name Dayflower -ErrorAction SilentlyContinue |
     Where-Object { $_.Path -like "$appDir\*" } |
-    ForEach-Object { $_.CloseMainWindow() | Out-Null; if (-not $_.WaitForExit(5000)) { $_.Kill() } }
+    ForEach-Object { $_.Kill(); $_.WaitForExit(5000) | Out-Null }
 
 dotnet build (Join-Path $appDir 'Dayflower.App.csproj') -c $Configuration -p:Platform=$platform
 if ($LASTEXITCODE -ne 0) { throw 'Build failed.' }

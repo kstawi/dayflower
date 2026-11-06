@@ -34,6 +34,15 @@ public sealed class AppSettings
     /// <summary>How many minutes before a meeting starts its Join button appears on the event in the grid.</summary>
     public int JoinLeadMinutes { get; set; } = 10;
 
+    /// <summary>A second notification, with Join, when a meeting starts.</summary>
+    public bool StartingNowAlert { get; set; } = true;
+
+    /// <summary>Reminders stay on screen until dealt with (Windows' reminder style), rather than fading away.</summary>
+    public bool KeepRemindersOnScreen { get; set; } = true;
+
+    /// <summary>Whether the "still running in the tray" notice has been shown once.</summary>
+    public bool TrayNoticeShown { get; set; }
+
     private static string FilePath => Path.Combine(AppPaths.DataFolder, "settings.json");
 
     public static AppSettings Load()

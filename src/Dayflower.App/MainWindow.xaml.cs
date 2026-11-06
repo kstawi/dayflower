@@ -29,7 +29,7 @@ public sealed partial class MainWindow : Window
 
     private readonly AppServices _services;
     private readonly CalendarDataService _data;
-    private readonly AppSettings _settings = AppSettings.Load();
+    private readonly AppSettings _settings;
     private readonly ILogger<MainWindow> _logger;
     private readonly JoinService _join;
 
@@ -39,12 +39,16 @@ public sealed partial class MainWindow : Window
     // Each reload gets a number; a slower, older reload doesn't overwrite a newer one.
     private int _loadVersion;
 
-    public MainWindow(AppServices services)
+    // Closing only hides the window, except when the app quits.
+    private bool _closingForGood;
+
+    public MainWindow(AppServices services, AppSettings settings, JoinService join)
     {
         _services = services;
+        _settings = settings;
+        _join = join;
         _data = new CalendarDataService(services);
         _logger = services.Loggers.CreateLogger<MainWindow>();
-        _join = new JoinService(services.Loggers.CreateLogger<JoinService>());
 
         // Week start comes from Windows' regional settings (Settings > Time & language > Language & region).
         var weekStart = GlobalizationPreferences.WeekStartsOn;
@@ -75,7 +79,44 @@ public sealed partial class MainWindow : Window
         };
         services.Sync.Completed += (_, _) => _ = ReloadAsync(periodChanged: false);
         Accounts.CalendarsChanged += (_, _) => _ = ReloadAsync(periodChanged: false);
+
+        // Closing the window hides it; Dayflower keeps running in the notification area to remind about events.
+        AppWindow.Closing += (_, args) =>
+        {
+            if (!_closingForGood)
+            {
+                args.Cancel = true;
+                AppWindow.Hide();
+                HiddenToTray?.Invoke(this, EventArgs.Empty);
+            }
+        };
         _ = StartAsync();
+    }
+
+    /// <summary>Raised when closing the window hid it to the notification area.</summary>
+    public event EventHandler? HiddenToTray;
+
+    /// <summary>Shows the window (from the tray, a notification or a second launch) and brings it to the front.</summary>
+    public void ShowWindow()
+    {
+        if (AppWindow.Presenter is OverlappedPresenter { State: OverlappedPresenterState.Minimized } presenter)
+        {
+            presenter.Restore();
+        }
+
+        AppWindow.Show();
+        Activate();
+        SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
+    }
+
+    /// <summary>Opens the day view on <paramref name="day"/>, e.g. for a clicked notification.</summary>
+    public void ShowDate(DateOnly day) => ViewModel.ShowDay(day);
+
+    /// <summary>Really closes the window, when the app quits.</summary>
+    public void CloseForGood()
+    {
+        _closingForGood = true;
+        Close();
     }
 
     private async Task StartAsync()
@@ -261,4 +302,8 @@ public sealed partial class MainWindow : Window
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetForegroundWindow(IntPtr hwnd);
 }

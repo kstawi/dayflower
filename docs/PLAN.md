@@ -4,8 +4,8 @@ A Windows 11 calendar app that shows several Google accounts in one calendar, pu
 video meeting, and raises desktop reminders that match the reminders set in Google Calendar. It's built to look
 like part of Windows 11, starts with Google, and leaves room for Microsoft 365, iCloud, CalDAV and ICS later.
 
-Status: agreed in the planning interview on 2026-11-06. Phases 0 (setup), 1 (accounts and sync), 2 (calendar
-views) and 3 (Join) are done; phase 4 (reminders, tray and start-up) is next.
+Status: agreed in the planning interview on 2026-11-06. Phases 0–4 (setup, accounts and sync, calendar views,
+Join, reminders with tray and start-up) are done: the daily-driver milestone. Phase 5 (editing) is next.
 
 ## 1. Decisions
 
@@ -179,7 +179,7 @@ dayflower/
 |---|---|
 | UI | Windows App SDK (WinUI 3), CommunityToolkit.WinUI (setting cards, segmented control) |
 | MVVM | CommunityToolkit.Mvvm; services are composed by hand in `AppServices` (no DI container needed yet) |
-| Tray icon | H.NotifyIcon.WinUI (WinUI 3 has no built-in tray icon) |
+| Tray icon | H.NotifyIcon.WinUI 2.4 (WinUI 3 has no built-in tray icon); works with Windows App SDK 2.6 |
 | Google | The Calendar REST API called directly with HttpClient and System.Text.Json, plus Dayflower's own OAuth flow (loopback + PKCE). Chosen over Google's .NET client libraries in phase 1: lighter, and the tests feed Google-shaped JSON into the same code the app runs. |
 | Cache and search | Microsoft.Data.Sqlite with SQLite FTS5 |
 | Recurrence | Ical.Net (RRULE expansion) |
@@ -300,6 +300,18 @@ of everything) before the larger editing work; until phase 5 you'd still make ch
 - Tray icon and menu, hide-to-tray, start with Windows.
 - **Done when:** reminders fire at the same times Google Calendar's would, with the window closed, after sleep and
   across a restart. **This is the daily-driver milestone.**
+- **Result:** reminder rules are in Core (`ReminderPlanner`, unit-tested); the app checks every 10 seconds, so a
+  reminder missed during sleep or before start-up shows once if its event hasn't ended, and `reminders.json`
+  remembers what was shown and snoozed. Notifications use Windows App SDK app notifications (reminder scenario,
+  Join / Snooze with a choice / Dismiss), activated through a COM activator declared in the manifest. The tray
+  icon uses H.NotifyIcon.WinUI; Program.cs keeps one instance per user; the manifest's startup task is on by
+  default and starts Dayflower hidden. Checked with a real event: the reminder, two snoozes, the starting-now alert
+  and Join from the notification all worked with the window closed, and a missed reminder appeared at start-up
+  and not again after a restart.
+- **Limits:** Google doesn't expose its default reminders for all-day events through the API, so all-day events
+  only remind with their own reminders. Calendars hidden in Dayflower don't remind.
+- **Note:** a manifest change (new extensions) needs a higher package version to re-register the development
+  build without losing its data; the version is now 0.4.0.
 
 ### Phase 5: Editing (L)
 - Quick create, full editor, delete, RSVP with note, guests with autocomplete and availability, Meet link,

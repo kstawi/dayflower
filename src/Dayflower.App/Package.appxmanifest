@@ -2,11 +2,14 @@
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  IgnorableNamespaces="uap rescap">
+  IgnorableNamespaces="uap uap5 com desktop rescap">
 
   <!-- Development identity. The Store listing replaces Name and Publisher with the ones Partner Center assigns. -->
-  <Identity Name="kstawi.Dayflower" Publisher="CN=kstawi" Version="0.1.0.0" />
+  <Identity Name="kstawi.Dayflower" Publisher="CN=kstawi" Version="0.4.0.0" />
 
   <Properties>
     <DisplayName>Dayflower</DisplayName>
@@ -33,6 +36,25 @@
         <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
+
+      <Extensions>
+        <!-- Clicks on Dayflower's notifications (Join, Snooze...) come back through this COM activator. -->
+        <desktop:Extension Category="windows.toastNotificationActivation">
+          <desktop:ToastNotificationActivation ToastActivatorCLSID="D03C735B-A4EF-4A01-90EF-25DDE950BBB0" />
+        </desktop:Extension>
+        <com:Extension Category="windows.comServer">
+          <com:ComServer>
+            <com:ExeServer Executable="Dayflower.exe" DisplayName="Dayflower" Arguments="----AppNotificationActivated:">
+              <com:Class Id="D03C735B-A4EF-4A01-90EF-25DDE950BBB0" />
+            </com:ExeServer>
+          </com:ComServer>
+        </com:Extension>
+
+        <!-- Start with Windows, on by default; switchable in Task Manager > Startup apps and in Dayflower's tray menu. -->
+        <uap5:Extension Category="windows.startupTask" Executable="Dayflower.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:StartupTask TaskId="DayflowerStartup" Enabled="true" DisplayName="Dayflower" />
+        </uap5:Extension>
+      </Extensions>
     </Application>
   </Applications>
 
