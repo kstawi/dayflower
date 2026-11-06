@@ -33,7 +33,14 @@ This is what people see when Dayflower asks for access to their calendar. It liv
 
 ## 4. Publish the app
 
-Go to **Audience** and click **Publish app**, so the status changes from **Testing** to **In production**.
+Google only publishes an app whose branding has a homepage and a privacy policy. Under **Branding**, fill in:
+
+- **App home page:** `https://github.com/kstawi/dayflower`
+- **App privacy policy link:** `https://github.com/kstawi/dayflower/blob/main/PRIVACY.md`
+- **Authorized domains:** `github.com`
+
+Save, then go to **Audience** and click **Publish app**, so the status changes from **Testing** to
+**In production**.
 
 Don't skip this. In Testing status Google ends every sign-in after 7 days, and you'd have to sign in again each week.
 
