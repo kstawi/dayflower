@@ -13,10 +13,10 @@ namespace Dayflower.Services;
 /// <para>
 /// Windows 11 draws a window's taskbar button from the Start menu shortcut that shares the window's taskbar identity
 /// (app ID), and ignores the window's own icon. So an installed copy points its Start menu shortcut, and any pinned copy
-/// of it, at today's icon (a copy the taskbar can read, see <see cref="ReadableCopy"/>); that also dates the Start menu
-/// entry. The taskbar reads a shortcut's icon only when it creates a button, so when the date changes while the window
-/// is open, the window briefly takes another app ID and then its own again, and the taskbar makes the button afresh.
-/// (Found by trying: re-setting the same app ID does nothing.)
+/// of it, at today's icon in its own folder; that also dates the Start menu entry. The taskbar reads a shortcut's icon
+/// only when it creates a button, so when the date changes while the window is open, the window briefly takes another
+/// app ID and then its own again, and the taskbar makes the button afresh. (Found by trying: re-setting the same app ID
+/// does nothing.)
 /// </para>
 /// <para>
 /// A development build has no such shortcut: its window gets an app ID of its own that no shortcut carries, and the
@@ -40,12 +40,11 @@ public static partial class TaskbarDate
             return;
         }
 
-        bool changed = false;
-        if (AppIdentity.InstalledAppId is not null && ReadableCopy(icon) is { } copy)
+        if (AppIdentity.InstalledAppId is not null)
         {
             foreach (string shortcut in OurShortcuts())
             {
-                changed |= SetShortcutIcon(shortcut, copy);
+                SetShortcutIcon(shortcut, icon);
             }
         }
 
@@ -56,49 +55,14 @@ public static partial class TaskbarDate
         else
         {
             SetWindowAppId(window, appId);
-            if (changed)
-            {
-                // The button may be made while Windows is still taking in the changed shortcut.
-                await Task.Delay(TimeSpan.FromSeconds(3));
-                await RedrawAsync(window, appId);
-            }
         }
     }
 
     /// <summary>
-    /// Keeps today's icon where the taskbar can read it, and checks it's still there (a cleanup of the Temp folder may
-    /// remove it). The taskbar can't read icons in a folder made under AppData since Windows started (seen on Windows 11
-    /// build 26300, the installed copy's own folder included), but it can in the Temp folder, which always exists.
+    /// %TEMP%\{name}, where the first betas kept a copy of today's icon (needed only when testing from inside Claude
+    /// desktop's package, as it turned out); removed on uninstall.
     /// </summary>
-    public static string? ReadableCopy(string icon)
-    {
-        try
-        {
-            string folder = TempFolder();
-            string copy = Path.Combine(folder, Path.GetFileName(icon));
-            if (!File.Exists(copy))
-            {
-                Directory.CreateDirectory(folder);
-                foreach (string old in Directory.EnumerateFiles(folder, "day-*.ico"))
-                {
-                    File.Delete(old);
-                }
-
-                File.Copy(icon, copy);
-            }
-
-            return copy;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
-    }
-
-    /// <summary>%TEMP%\{name}, where today's icon is kept; removed on uninstall.</summary>
-    public static string TempFolder() => TempFolderFor(AppIdentity.Name);
-
-    public static string TempFolderFor(string name) => Path.Combine(Path.GetTempPath(), name);
+    public static string OldTempFolderFor(string name) => Path.Combine(Path.GetTempPath(), name);
 
     private static async Task RedrawAsync(IntPtr window, string appId)
     {

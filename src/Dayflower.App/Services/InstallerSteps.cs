@@ -48,7 +48,7 @@ public static class InstallerSteps
 
         try
         {
-            string icons = TaskbarDate.TempFolderFor(id);
+            string icons = TaskbarDate.OldTempFolderFor(id);
             if (Directory.Exists(icons))
             {
                 Directory.Delete(icons, recursive: true);

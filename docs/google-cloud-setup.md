@@ -106,7 +106,8 @@ buying one. `github.io` is on the public suffix list, so `kstawi.github.io` is a
    - Privacy policy: `https://kstawi.github.io/dayflower/privacy.html`
    - Authorized domains: `kstawi.github.io`
 
-If Google won't accept the address, use a domain of your own instead:
+Then follow [google-verification.md](google-verification.md): the brand check, and the demo video for the data
+access review. If Google won't accept the address, use a domain of your own instead:
 
 ### If Google refuses it: getdayflower.com
 

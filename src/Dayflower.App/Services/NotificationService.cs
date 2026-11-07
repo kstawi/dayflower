@@ -22,38 +22,89 @@ public sealed class NotificationService(ILogger<NotificationService> logger)
 {
     private const string ReminderGroup = "reminders";
     private const string NotificationIcon = "Square44x44Logo.targetsize-48_altform-unplated.png";
-    private bool _registered;
+
+    /// <summary>Clicks that arrived before the app was ready for them.</summary>
+    private static readonly System.Collections.Concurrent.ConcurrentQueue<NotificationAction> Early = new();
+
+    private static Action<NotificationAction>? _deliver;
+    private static bool _registered;
 
     /// <summary>Raised (on a background thread) when the user acts on a notification while Dayflower is running.</summary>
     public event EventHandler<NotificationAction>? ActionInvoked;
 
-    public void Register()
+    /// <summary>
+    /// Registers for notification clicks. Called first thing in Main: when a click starts Dayflower, Windows hands the
+    /// click over as soon as the process registers, and reading the activation (AppInstance.GetActivatedEventArgs)
+    /// before registering ends the process with a fail-fast in the Windows App SDK. Clicks that arrive before the app
+    /// is ready wait for <see cref="Register"/>.
+    /// </summary>
+    public static void RegisterForClicks()
     {
-        if (!AppNotificationManager.IsSupported())
+        if (_registered)
         {
-            logger.LogWarning("App notifications aren't supported here");
             return;
         }
 
-        AppNotificationManager.Default.NotificationInvoked += (_, args) => ActionInvoked?.Invoke(this, Parse(args));
-        if (AppIdentity.IsPackaged)
+        try
         {
-            // The name and icon come from the package manifest.
-            AppNotificationManager.Default.Register();
+            if (!AppNotificationManager.IsSupported())
+            {
+                return;
+            }
+
+            AppNotificationManager.Default.NotificationInvoked += (_, args) =>
+            {
+                var action = Parse(args);
+                if (_deliver is { } deliver)
+                {
+                    deliver(action);
+                }
+                else
+                {
+                    Early.Enqueue(action);
+                }
+            };
+            if (AppIdentity.IsPackaged)
+            {
+                // The name and icon come from the package manifest.
+                AppNotificationManager.Default.Register();
+            }
+            else
+            {
+                // Left to itself, Windows would take the 16-pixel icon from Dayflower.exe and scale it up, blurred.
+                AppNotificationManager.Default.Register("Dayflower", new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", NotificationIcon)));
+            }
+
+            _registered = true;
         }
-        else
+        catch (Exception)
         {
-            // Left to itself, Windows would take the 16-pixel icon from Dayflower.exe and scale it up, blurred.
-            AppNotificationManager.Default.Register("Dayflower", new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", NotificationIcon)));
+            // No notifications; Register logs it.
+        }
+    }
+
+    /// <summary>Starts passing clicks to <see cref="ActionInvoked"/>, including any that came before.</summary>
+    public void Register()
+    {
+        RegisterForClicks();
+        if (!_registered)
+        {
+            logger.LogWarning("App notifications aren't available");
+            return;
         }
 
-        _registered = true;
+        _deliver = action => ActionInvoked?.Invoke(this, action);
+        while (Early.TryDequeue(out var action))
+        {
+            _deliver(action);
+        }
     }
 
     public void Unregister()
     {
         if (_registered)
         {
+            _deliver = null;
             AppNotificationManager.Default.Unregister();
             _registered = false;
         }

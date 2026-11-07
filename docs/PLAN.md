@@ -386,8 +386,21 @@ and you install it the same way. Steps 1 and 6 need only you and can start strai
    a `kstawi.github.io` user site holding Google's file (2026-11-06); Google's rules don't say whether that counts,
    so `getdayflower.com` is the fallback (free; `dayflower.com`, `.app`, `.dev`, `.io`, `.org` and `.net` are taken,
    `.org` by an unrelated 3D renderer). Steps in
-   [google-cloud-setup.md step 8](google-cloud-setup.md#8-homepage-and-domain-for-googles-verification). Then the
-   video script and scope reasons, and app screenshots made with a demo account rather than real events.
+   [google-cloud-setup.md step 8](google-cloud-setup.md#8-homepage-and-domain-for-googles-verification).
+
+   **Done 2026-11-06:** `https://kstawi.github.io/` verified in Search Console (HTML file in the `kstawi.github.io`
+   repo); Branding points at the homepage and privacy page, with `kstawi.github.io` as the authorized domain (Google
+   accepted it and flagged it as missing until added, so it does treat it as a domain of its own). The six scopes
+   are now declared under Data access, which they weren't (Google counts only `calendar.events` as sensitive; the
+   calendar list and free/busy are not), with the reason for `calendar.events` written in. Google's order from here:
+   verify and publish the brand (Branding › Verify brand), then submit data access with the demo video's YouTube
+   link. First brand check (2026-11-07, automatic, a few minutes): "the home page
+   `https://kstawi.github.io/dayflower/` isn't registered to you; verify ownership, then wait 24 hours before
+   retrying" — the Search Console property had been verified minutes earlier. Retry from 2026-11-08 with "Problems
+   resolved, request verification again"; if it fails again, also verify the exact prefix
+   `https://kstawi.github.io/dayflower/` (Google's file in `site/`), and failing that, buy the domain. Status, the
+   scope reason and the demo video's script and shot list: [google-verification.md](google-verification.md). Still to make: the video (from a script) and app screenshots, both with a demo account rather than real
+   events.
 2. **Unpackaged build, checked first.** Dayflower built as a self-contained app (the .NET runtime and Windows App SDK
    included, nothing to install first), then a check of everything that behaves differently without a package:
    - notifications show Dayflower's name and icon, and their buttons (Join, Snooze, Accept / Maybe / Decline) reach
@@ -402,6 +415,20 @@ and you install it the same way. Steps 1 and 6 need only you and can start strai
 
    `run.ps1` moves to the unpackaged build, so day-to-day testing matches what ships and Developer Mode is no longer
    needed. The MSIX build stays buildable for a possible Store listing.
+
+   **Correction, 2026-11-07:** the checks below and in step 3 ran from Claude Code, whose shells on this PC sit inside
+   Claude desktop's MSIX package: their AppData and HKCU writes go to Claude's private storage and are invisible to
+   Windows. That, not Windows, explains the notification click after Quit failing ("class not registered"), the
+   missing banners, and the taskbar's blank icons for files in new AppData folders (so the copy of today's icon in
+   Temp is probably unnecessary). The beta installed for everyday use was in the same state, and was reinstalled
+   through Windows, with its data moved out of Claude's storage. Re-tested from processes started through WMI
+   (outside Claude):
+   - A notification click while Dayflower isn't running crashed it: `Main` read the activation before registering
+     for clicks, and the Windows App SDK fail-fasts (0xc0000409 in `Microsoft.WindowsAppRuntime.dll`). Fixed by
+     registering first; a click now starts Dayflower with its window, logged as `Started ("AppNotification")`.
+   - Notifications are enabled for Dayflower and land in the notification history; whether the pop-up shows
+     couldn't be detected by script, so it needs a look by eye.
+   - The taskbar reads the dated icon from the install folder, so the Temp copy is gone.
 
    **Built and checked 2026-11-06** on this PC (Windows 11 build 26300):
    - Works: the window, a second launch handing over to the running copy, Start with Windows (the Run entry on and
@@ -442,10 +469,9 @@ and you install it the same way. Steps 1 and 6 need only you and can start strai
      with the window open it briefly switches the window's identity so the taskbar redraws the button. A development
      build gets an identity no shortcut carries, so the taskbar shows its window's icon. Checked with test installs;
      the midnight redraw and a pinned button only with stand-in windows so far.
-   - The taskbar can't read icons in a folder created directly under AppData since Windows started (a blank page
-     instead), which includes the installed copy's own folder, while older folders and Temp are fine (Windows 11 build
-     26300). So today's icon is copied to `%TEMP%\Dayflower` and put back if a cleanup removes it. Without that, even
-     the plain program icon would be blank on the taskbar until the next sign-in after installing.
+   - (Withdrawn: the taskbar seemed unable to read icons from new AppData folders, so today's icon was copied to
+     Temp. That only happened because the test installs ran inside Claude desktop's package; see the correction in
+     step 2.)
    - The installer is about 105 MB and a full update about 98 MB (the .NET runtime and Windows App SDK included);
      ordinary updates are deltas of under a megabyte.
 4. **Release workflow.** Pushing a version tag (`v0.7.0`) runs the tests, builds x64 and ARM64 with the OAuth client

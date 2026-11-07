@@ -32,6 +32,10 @@ public static partial class Program
             .Run();
 
         WinRT.ComWrappersSupport.InitializeComWrappers();
+
+        // Before anything reads the activation: when a notification click started Dayflower, Windows only hands the
+        // click over once Dayflower has registered for it.
+        NotificationService.RegisterForClicks();
         if (RedirectToRunningInstance() || UpdateService.ApplyPendingUpdate(args.Contains(StartupService.BackgroundArgument)))
         {
             return 0;

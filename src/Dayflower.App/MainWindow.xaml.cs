@@ -764,11 +764,6 @@ public sealed partial class MainWindow : Window
         string icon = Path.Combine(AppContext.BaseDirectory, "Assets", "Days", $"day-{day}.ico");
         if (day == _iconDay)
         {
-            if (AppIdentity.InstalledAppId is not null)
-            {
-                TaskbarDate.ReadableCopy(icon); // put back if a Temp cleanup removed it
-            }
-
             return;
         }
 
