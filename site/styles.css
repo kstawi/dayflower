@@ -78,6 +78,10 @@ a:hover { color: var(--accent-strong); }
 .button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .button.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); color: var(--on-accent); }
 .fine { margin-top: 14px; color: var(--muted); font-size: 14px; }
+.shot img {
+  display: block; width: 100%; height: auto;
+  border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow);
+}
 
 /* Sections */
 

@@ -397,8 +397,8 @@ Steps 1 and 6 depend on Google and SignPath, so they start first; the rest is co
    `https://kstawi.github.io/dayflower/` isn't registered to you"; the exact homepage got a Search Console property
    of its own on 2026-11-09, so the retry is from 2026-11-10, and failing that, a domain of its own. The demo video
    was recorded and linked under Data access on 2026-11-09. Status, the scope reason and the video's shot list:
-   [google-verification.md](google-verification.md). Still to make: app screenshots for the homepage, with made-up
-   events.
+   [google-verification.md](google-verification.md). The homepage shows the week view with made-up events, in light or
+   dark to match the visitor's setting (2026-11-09; the account's address blurred).
 2. **Unpackaged build, checked first.** Dayflower built as a self-contained app (the .NET runtime and Windows App SDK
    included, nothing to install first), then a check of everything that behaves differently without a package:
    - notifications show Dayflower's name and icon, and their buttons (Join, Snooze, Accept / Maybe / Decline) reach
