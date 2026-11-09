@@ -126,26 +126,6 @@
                                 </Button>
                             </Grid>
 
-                            <InfoBar
-                                IsClosable="False"
-                                IsOpen="{x:Bind Accounts.IsSigningIn, Mode=OneWay}"
-                                Visibility="{x:Bind Accounts.IsSigningIn, Mode=OneWay}"
-                                Message="Pick your Google account there. Dayflower is waiting."
-                                Severity="Informational"
-                                Title="Continue in your browser">
-                                <InfoBar.ActionButton>
-                                    <Button Command="{x:Bind Accounts.CancelSignInCommand}" Content="Cancel" />
-                                </InfoBar.ActionButton>
-                            </InfoBar>
-
-                            <InfoBar
-                                x:Name="AccountMessage"
-                                IsOpen="{x:Bind Accounts.HasMessage, Mode=TwoWay}"
-                                Visibility="{x:Bind Accounts.HasMessage, Mode=OneWay}"
-                                Message="{x:Bind Accounts.Message, Mode=OneWay}"
-                                Severity="{x:Bind Accounts.MessageSeverity, Mode=OneWay}"
-                                Title="{x:Bind Accounts.MessageTitle, Mode=OneWay}" />
-
                             <StackPanel Spacing="8" Visibility="{x:Bind Accounts.HasNoAccounts, Mode=OneWay}">
                                 <TextBlock Style="{StaticResource PaneHintTextStyle}" Text="Add a Google account to see its calendars here." />
                                 <Button
@@ -455,5 +435,53 @@
                 <Grid x:Name="SettingsHost" Visibility="Collapsed" />
             </Grid>
         </Grid>
+
+        <!-- In-app notices float in the bottom-right corner, above the calendar and Settings alike. -->
+        <StackPanel
+            x:Name="NoticeArea"
+            Grid.Row="1"
+            MaxWidth="400"
+            Margin="0,0,20,20"
+            HorizontalAlignment="Right"
+            VerticalAlignment="Bottom"
+            Spacing="8">
+            <Border
+                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                CornerRadius="{ThemeResource OverlayCornerRadius}"
+                Translation="0,0,32"
+                Visibility="{x:Bind Accounts.IsSigningIn, Mode=OneWay}">
+                <Border.Shadow>
+                    <ThemeShadow />
+                </Border.Shadow>
+                <InfoBar
+                    CornerRadius="{ThemeResource OverlayCornerRadius}"
+                    IsClosable="False"
+                    IsOpen="{x:Bind Accounts.IsSigningIn, Mode=OneWay}"
+                    Message="Pick your Google account there. Dayflower is waiting."
+                    Severity="Informational"
+                    Title="Continue in your browser">
+                    <InfoBar.ActionButton>
+                        <Button Command="{x:Bind Accounts.CancelSignInCommand}" Content="Cancel" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+            </Border>
+
+            <Border
+                Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                CornerRadius="{ThemeResource OverlayCornerRadius}"
+                Translation="0,0,32"
+                Visibility="{x:Bind Accounts.HasMessage, Mode=OneWay}">
+                <Border.Shadow>
+                    <ThemeShadow />
+                </Border.Shadow>
+                <InfoBar
+                    x:Name="AccountMessage"
+                    CornerRadius="{ThemeResource OverlayCornerRadius}"
+                    IsOpen="{x:Bind Accounts.HasMessage, Mode=TwoWay}"
+                    Message="{x:Bind Accounts.Message, Mode=OneWay}"
+                    Severity="{x:Bind Accounts.MessageSeverity, Mode=OneWay}"
+                    Title="{x:Bind Accounts.MessageTitle, Mode=OneWay}" />
+            </Border>
+        </StackPanel>
     </Grid>
 </Window>
