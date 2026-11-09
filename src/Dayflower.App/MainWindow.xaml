@@ -179,18 +179,6 @@
                                                 </Button>
                                             </Grid>
 
-                                            <InfoBar
-                                                IsClosable="False"
-                                                IsOpen="{x:Bind NeedsSignIn}"
-                                                Visibility="{x:Bind NeedsSignIn}"
-                                                Message="Google stopped accepting this account's saved sign-in."
-                                                Severity="Warning"
-                                                Title="Sign in again">
-                                                <InfoBar.ActionButton>
-                                                    <Button Command="{x:Bind SignInAgainCommand}" Content="Sign in" />
-                                                </InfoBar.ActionButton>
-                                            </InfoBar>
-
                                             <ItemsControl ItemsSource="{x:Bind Calendars}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="vm:CalendarItemViewModel">
@@ -436,16 +424,45 @@
             </Grid>
         </Grid>
 
-        <!-- In-app notices float in the bottom-right corner, above the calendar and Settings alike. -->
+        <!-- In-app notices float in the bottom-right corner, above the calendar and Settings alike. Each card's top
+             margin spaces them, so hidden ones take no room. -->
         <StackPanel
             x:Name="NoticeArea"
             Grid.Row="1"
             MaxWidth="400"
             Margin="0,0,20,20"
             HorizontalAlignment="Right"
-            VerticalAlignment="Bottom"
-            Spacing="8">
+            VerticalAlignment="Bottom">
+            <ItemsControl ItemsSource="{x:Bind Accounts.Accounts}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AccountItemViewModel">
+                        <Border
+                            Margin="0,8,0,0"
+                            Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                            CornerRadius="{ThemeResource OverlayCornerRadius}"
+                            Translation="0,0,32"
+                            Visibility="{x:Bind NeedsSignIn}">
+                            <Border.Shadow>
+                                <ThemeShadow />
+                            </Border.Shadow>
+                            <InfoBar
+                                CornerRadius="{ThemeResource OverlayCornerRadius}"
+                                IsClosable="False"
+                                IsOpen="{x:Bind NeedsSignIn}"
+                                Message="{x:Bind SignInMessage}"
+                                Severity="Warning"
+                                Title="Sign in again">
+                                <InfoBar.ActionButton>
+                                    <Button Command="{x:Bind SignInAgainCommand}" Content="Sign in" />
+                                </InfoBar.ActionButton>
+                            </InfoBar>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
             <Border
+                Margin="0,8,0,0"
                 Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
                 CornerRadius="{ThemeResource OverlayCornerRadius}"
                 Translation="0,0,32"
@@ -467,6 +484,7 @@
             </Border>
 
             <Border
+                Margin="0,8,0,0"
                 Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
                 CornerRadius="{ThemeResource OverlayCornerRadius}"
                 Translation="0,0,32"

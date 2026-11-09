@@ -19,10 +19,12 @@ namespace Dayflower.ViewModels;
 public sealed partial class AccountsViewModel : ObservableObject
 {
     private static readonly TimeSpan SignInTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan MessageTime = TimeSpan.FromSeconds(6);
 
     private readonly AppServices _services;
     private readonly ILogger<AccountsViewModel> _logger;
     private CancellationTokenSource? _signIn;
+    private int _messagesShown;
 
     public AccountsViewModel(AppServices services)
     {
@@ -134,7 +136,7 @@ public sealed partial class AccountsViewModel : ObservableObject
 
             await LoadAsync();
             ShowMessage(InfoBarSeverity.Success, existing is null ? "Account added" : "Signed in again",
-                        $"{account.Email}: downloading calendars…");
+                        $"{account.Email}: downloading calendars…", stays: true); // until the sync finishes
             await _services.Sync.SyncNowAsync();
         }
         catch (OperationCanceledException)
@@ -229,12 +231,31 @@ public sealed partial class AccountsViewModel : ObservableObject
         CacheDetail = string.Empty;
     }
 
-    private void ShowMessage(InfoBarSeverity severity, string title, string message)
+    /// <summary>
+    /// Shows a notice. Good news and information close on their own after a few seconds, unless <paramref name="stays"/>
+    /// (closed by whoever shows it); warnings and errors stay until the user closes them.
+    /// </summary>
+    private void ShowMessage(InfoBarSeverity severity, string title, string message, bool stays = false)
     {
         MessageSeverity = severity;
         MessageTitle = title;
         Message = message;
         HasMessage = true;
+
+        int shown = ++_messagesShown;
+        if (!stays && severity is InfoBarSeverity.Success or InfoBarSeverity.Informational)
+        {
+            _ = HideMessageLaterAsync(shown);
+        }
+    }
+
+    private async Task HideMessageLaterAsync(int shown)
+    {
+        await Task.Delay(MessageTime);
+        if (shown == _messagesShown)
+        {
+            HasMessage = false; // only if no newer notice took its place
+        }
     }
 }
 
@@ -246,6 +267,8 @@ public sealed partial class AccountItemViewModel(AccountsViewModel owner, Accoun
     public string Email { get; } = account.Email;
 
     public bool NeedsSignIn { get; } = account.State == AccountState.NeedsSignIn;
+
+    public string SignInMessage => $"Google stopped accepting the saved sign-in for {Email}.";
 
     public ObservableCollection<CalendarItemViewModel> Calendars { get; } = [];
 
