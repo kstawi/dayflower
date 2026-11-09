@@ -1,0 +1,45 @@
+name: Homepage
+
+# Publishes the homepage (site/, with PRIVACY.md rendered into privacy.html) with GitHub Pages whenever it or the
+# privacy policy changes on main, at https://kstawi.github.io/dayflower/. Google's app verification needs both on a
+# domain Dayflower owns; a custom domain, if needed, goes in the repo's Pages settings, not in a CNAME file (see
+# docs/google-cloud-setup.md, step 8).
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'PRIVACY.md', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./site/build.ps1
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

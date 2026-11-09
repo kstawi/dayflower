@@ -1,0 +1,84 @@
+name: Release
+
+# Pushing a version tag (v0.7.0, or v0.7.0-beta.1 for a pre-release) builds the installer and update packages for x64
+# and ARM64 and publishes them as a GitHub Release. Installed copies update themselves from the latest release (not
+# from pre-releases). The release notes are that version's section of CHANGELOG.md.
+#
+# Needs two repository secrets, the Google OAuth client for signing in (see docs/google-cloud-setup.md):
+# GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      GoogleOAuthClientId: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+      GoogleOAuthClientSecret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Read the version and release notes
+        shell: pwsh
+        run: |
+          if (-not $env:GoogleOAuthClientId -or -not $env:GoogleOAuthClientSecret) {
+            throw 'The GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET secrets are missing; a release without them could not sign in.'
+          }
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          $changelog = Get-Content CHANGELOG.md -Raw
+          # A pre-release (0.7.0-beta.1) uses its own section if there is one, otherwise its version's (0.7.0).
+          foreach ($heading in $version, $version.Split('-')[0]) {
+            $section = [regex]::Match($changelog, "(?ms)^## $([regex]::Escape($heading))[ \t]*\r?\n(.*?)(?=^## |\z)")
+            if ($section.Success) { break }
+          }
+          if (-not $section.Success) { throw "CHANGELOG.md has no section for $version." }
+          $section.Groups[1].Value.Trim() | Set-Content release-notes.md -Encoding utf8
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "PRERELEASE=$($version.Contains('-'))" >> $env:GITHUB_ENV
+
+      - name: Test
+        run: dotnet test --solution Dayflower.slnx -c Release
+
+      - name: Get the previous release, for update deltas
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          foreach ($channel in 'win-x64', 'win-arm64') {
+            dotnet vpk download github --repoUrl https://github.com/${{ github.repository }} --token $env:GH_TOKEN --channel $channel --outputDir releases
+            if ($LASTEXITCODE -ne 0) { "No earlier $channel release; this one will have no delta." }
+          }
+          $global:LASTEXITCODE = 0
+
+      - name: Pack x64
+        shell: pwsh
+        run: ./tools/Pack.ps1 -Version $env:VERSION -Runtime win-x64 -ReleaseNotes release-notes.md
+
+      - name: Pack ARM64
+        shell: pwsh
+        run: ./tools/Pack.ps1 -Version $env:VERSION -Runtime win-arm64 -ReleaseNotes release-notes.md
+
+      - name: Publish the GitHub Release
+        shell: pwsh
+        run: |
+          $common = @('--repoUrl', 'https://github.com/${{ github.repository }}', '--token', $env:GH_TOKEN, '--outputDir', 'releases',
+                      '--tag', '${{ github.ref_name }}', '--releaseName', "Dayflower $env:VERSION")
+          if ($env:PRERELEASE -eq 'True') { $common += '--pre' }
+          dotnet vpk upload github @common --channel win-x64
+          if ($LASTEXITCODE -ne 0) { throw 'Uploading x64 failed.' }
+          dotnet vpk upload github @common --channel win-arm64 --merge --publish
+          if ($LASTEXITCODE -ne 0) { throw 'Uploading ARM64 failed.' }
+          gh release edit '${{ github.ref_name }}' --notes-file release-notes.md

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Dayflower.Views.AgendaView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Dayflower.Views">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="HeaderTemplate" x:DataType="local:AgendaHeader">
+            <TextBlock
+                Margin="0,16,0,4"
+                Foreground="{x:Bind Brush}"
+                Style="{StaticResource BodyStrongTextBlockStyle}"
+                AutomationProperties.HeadingLevel="Level2"
+                Text="{x:Bind Text}" />
+        </DataTemplate>
+
+        <DataTemplate x:Key="EntryTemplate" x:DataType="local:AgendaEntry">
+            <Grid Padding="0,6" ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    VerticalAlignment="Center"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Text="{x:Bind Time}" />
+                <Border
+                    Grid.Column="1"
+                    Background="{x:Bind ColorBrush}"
+                    CornerRadius="2" />
+                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                    <TextBlock Text="{x:Bind Title}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind Detail}"
+                        TextTrimming="CharacterEllipsis"
+                        Visibility="{x:Bind HasDetail}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+
+        <local:AgendaTemplateSelector
+            x:Key="Selector"
+            EntryTemplate="{StaticResource EntryTemplate}"
+            HeaderTemplate="{StaticResource HeaderTemplate}" />
+    </UserControl.Resources>
+
+    <Grid>
+        <ListView
+            x:Name="List"
+            Padding="8,0,8,16"
+            IsItemClickEnabled="True"
+            ItemClick="List_ItemClick"
+            ItemTemplateSelector="{StaticResource Selector}"
+            SelectionMode="None" />
+
+        <TextBlock
+            x:Name="Empty"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Visibility="Collapsed" />
+    </Grid>
+</UserControl>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Dayflower.Views.TimeGridView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Day and week views: day headers, the all-day area, and the scrolling hour grid. Built in code. -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="HeaderRow" Padding="0,0,0,4" />
+
+        <Grid
+            x:Name="AllDayRow"
+            Grid.Row="1"
+            MinHeight="20"
+            Padding="0,0,0,4"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,0,0,1" />
+
+        <ScrollViewer
+            x:Name="Scroller"
+            Grid.Row="2"
+            HorizontalScrollMode="Disabled"
+            VerticalScrollBarVisibility="Auto">
+            <Grid x:Name="Body" />
+        </ScrollViewer>
+    </Grid>
+</UserControl>

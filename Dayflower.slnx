@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <!-- A packaged WinUI app can't be built for "Any CPU"; whole-solution builds use x64. -->
+    <Project Path="src/Dayflower.App/Dayflower.App.csproj">
+      <Platform Project="x64" />
+    </Project>
+    <Project Path="src/Dayflower.Core/Dayflower.Core.csproj" />
+    <Project Path="src/Dayflower.Providers.Google/Dayflower.Providers.Google.csproj" />
+    <Project Path="src/Dayflower.Storage/Dayflower.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Dayflower.Core.Tests/Dayflower.Core.Tests.csproj" />
+    <Project Path="tests/Dayflower.Providers.Google.Tests/Dayflower.Providers.Google.Tests.csproj" />
+    <Project Path="tests/Dayflower.Storage.Tests/Dayflower.Storage.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Dayflower.DevTool/Dayflower.DevTool.csproj" />
+  </Folder>
+</Solution>

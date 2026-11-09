@@ -1,0 +1,53 @@
+{
+  "kind": "calendar#calendarList",
+  "nextSyncToken": "list-sync-1",
+  "items": [
+    {
+      "kind": "calendar#calendarListEntry",
+      "id": "me@example.com",
+      "summary": "me@example.com",
+      "timeZone": "Europe/Warsaw",
+      "colorId": "14",
+      "backgroundColor": "#039be5",
+      "foregroundColor": "#ffffff",
+      "selected": true,
+      "accessRole": "owner",
+      "defaultReminders": [ { "method": "popup", "minutes": 10 } ],
+      "primary": true
+    },
+    {
+      "kind": "calendar#calendarListEntry",
+      "id": "team@group.calendar.google.com",
+      "summary": "Team calendar",
+      "summaryOverride": "Team",
+      "timeZone": "America/New_York",
+      "backgroundColor": "#7cb342",
+      "foregroundColor": "#000000",
+      "selected": true,
+      "accessRole": "writer",
+      "defaultReminders": []
+    },
+    {
+      "kind": "calendar#calendarListEntry",
+      "id": "pl.polish#holiday@group.v.calendar.google.com",
+      "summary": "Holidays in Poland",
+      "timeZone": "Europe/Warsaw",
+      "backgroundColor": "#0b8043",
+      "foregroundColor": "#ffffff",
+      "accessRole": "reader",
+      "defaultReminders": []
+    },
+    {
+      "kind": "calendar#calendarListEntry",
+      "id": "hidden@group.calendar.google.com",
+      "summary": "Hidden",
+      "hidden": true,
+      "accessRole": "reader"
+    },
+    {
+      "kind": "calendar#calendarListEntry",
+      "id": "gone@group.calendar.google.com",
+      "deleted": true
+    }
+  ]
+}

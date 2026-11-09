@@ -1,0 +1,10 @@
+<Project>
+  <!--
+    Copy this file to google-oauth.local.props (same folder) and fill in the OAuth client you created by
+    following docs/google-cloud-setup.md. Git ignores google-oauth.local.props, so the values stay on your PC.
+  -->
+  <PropertyGroup>
+    <GoogleOAuthClientId>YOUR-CLIENT-ID.apps.googleusercontent.com</GoogleOAuthClientId>
+    <GoogleOAuthClientSecret>YOUR-CLIENT-SECRET</GoogleOAuthClientSecret>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,61 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The WinUI 3 app: windows, views, view models, notifications. -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.22000.0</TargetPlatformMinVersion>
+    <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
+    <RootNamespace>Dayflower</RootNamespace>
+    <AssemblyName>Dayflower</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <DefaultLanguage>en-US</DefaultLanguage>
+
+    <!-- Program.cs has its own Main, for single-instance handling. LibraryImport needs unsafe code. -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <!--
+    A plain Dayflower.exe by default, as the installer ships it, with the Windows App SDK runtime included so nothing
+    has to be installed first. -p:PackageAsMsix=true builds the MSIX package instead, kept for a possible Microsoft
+    Store listing.
+  -->
+  <PropertyGroup Condition="'$(PackageAsMsix)' != 'true'">
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+
+  <!-- Copied to the output folder, which run.ps1 registers as the development package. -->
+  <ItemGroup>
+    <Content Include="Assets\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Days\*.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Manifest Include="$(ApplicationManifest)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Dayflower.Core\Dayflower.Core.csproj" />
+    <ProjectReference Include="..\Dayflower.Storage\Dayflower.Storage.csproj" />
+    <ProjectReference Include="..\Dayflower.Providers.Google\Dayflower.Providers.Google.csproj" />
+  </ItemGroup>
+
+  <!-- Lets MSIX tooling treat this as a packaged app project. -->
+  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)' != 'true' and '$(EnableMsixTooling)' == 'true'">
+    <ProjectCapability Include="Msix" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Velopack" />
+  </ItemGroup>
+
+</Project>

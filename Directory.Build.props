@@ -1,0 +1,24 @@
+<Project>
+
+  <!-- Settings shared by every project in the repo. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Development builds' version; release builds take theirs from the version tag (see README, Releasing). -->
+    <Version>0.7.0</Version>
+    <Authors>kstawi</Authors>
+    <Product>Dayflower</Product>
+    <Copyright>Copyright (C) 2026 kstawi</Copyright>
+    <RepositoryUrl>https://github.com/kstawi/dayflower</RepositoryUrl>
+  </PropertyGroup>
+
+  <!--
+    The Google OAuth client for local builds (see docs/google-cloud-setup.md). Git ignores this file, so the
+    values never reach the repo. GitHub Actions passes the same properties as environment variables instead.
+  -->
+  <Import Project="$(MSBuildThisFileDirectory)google-oauth.local.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)google-oauth.local.props')" />
+
+</Project>
