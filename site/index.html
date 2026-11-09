@@ -5,10 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dayflower</title>
   <meta name="description" content="A Windows 11 calendar for all your Google accounts, with a Join button for every meeting. Free and open source.">
+  <meta name="theme-color" content="#f6f8fc" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0f19" media="(prefers-color-scheme: dark)">
+  <meta property="og:title" content="Dayflower">
+  <meta property="og:description" content="A Windows 11 calendar for all your Google accounts, with a Join button for every meeting.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://kstawi.github.io/dayflower/">
+  <meta property="og:image" content="https://kstawi.github.io/dayflower/screenshot-light.png">
   <link rel="icon" href="favicon.png" type="image/png">
   <link rel="stylesheet" href="styles.css">
+  <script>document.documentElement.classList.add('js');</script>
+  <script src="script.js" defer></script>
 </head>
 <body>
+  <a class="skip" href="#main">Skip to content</a>
+
   <header class="site-header">
     <div class="wrap">
       <a class="brand" href="./"><img src="icon.png" alt="">Dayflower</a>
@@ -18,98 +29,254 @@
         <a href="privacy.html">Privacy</a>
         <a href="https://github.com/kstawi/dayflower">GitHub</a>
       </nav>
+      <a class="button small primary header-cta" href="https://github.com/kstawi/dayflower/releases">Download</a>
     </div>
   </header>
 
-  <main>
-    <div class="wrap hero">
-      <img src="icon.png" alt="The Dayflower icon: a calendar pad">
-      <h1>Dayflower</h1>
-      <p class="tagline">A Windows 11 calendar for all your Google accounts, with a Join button for every meeting.</p>
-      <div class="actions">
-        <a class="button primary" href="https://github.com/kstawi/dayflower/releases">Download for Windows</a>
-        <a class="button" href="https://github.com/kstawi/dayflower">Source code</a>
+  <main id="main">
+    <section class="hero">
+      <div class="hero-bg" aria-hidden="true">
+        <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
+        <span class="dots"></span>
       </div>
-      <p class="fine">Free and open source · Windows 11 · x64 and ARM</p>
-    </div>
 
-    <div class="wrap shot">
-      <picture>
-        <source srcset="screenshot-dark.png" media="(prefers-color-scheme: dark)">
-        <img src="screenshot-light.png" width="1280" height="800" alt="Dayflower's week view: a week of meetings and other events, a month calendar and the list of calendars to show.">
-      </picture>
-    </div>
+      <div class="wrap hero-inner">
+        <div class="pad-wrap">
+          <img class="pad-static" src="icon.png" alt="The Dayflower icon: a calendar pad">
+          <div class="pad" hidden aria-hidden="true">
+            <span class="ring"></span><span class="ring"></span>
+            <span class="pad-day" data-today></span>
+          </div>
+          <p class="pad-note" hidden>Today's date, right on its icon</p>
+        </div>
+
+        <p class="eyebrow"><span class="spark"></span>Free and open source · for Windows 11</p>
+        <h1>Dayflower</h1>
+        <p class="headline">All your Google calendars.<br><span class="grad">One beautiful Windows app.</span></p>
+        <p class="tagline">A Windows 11 calendar for all your Google accounts, with a Join button for every meeting.</p>
+
+        <div class="actions">
+          <a class="button primary large" href="https://github.com/kstawi/dayflower/releases">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" /></svg>
+            Download for Windows
+          </a>
+          <a class="button large ghost" href="https://github.com/kstawi/dayflower">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7 6-4 4 4 4m6-8 4 4-4 4" /></svg>
+            Source code
+          </a>
+        </div>
+        <p class="fine">Free and open source · Windows 11 · x64 and ARM</p>
+      </div>
+
+      <div class="wrap showcase">
+        <div class="glow" aria-hidden="true"></div>
+        <div class="frame">
+          <picture>
+            <source srcset="screenshot-dark.png" media="(prefers-color-scheme: dark)">
+            <img src="screenshot-light.png" width="1280" height="800" alt="Dayflower's week view: a week of meetings and other events, a month calendar and the list of calendars to show.">
+          </picture>
+        </div>
+
+        <div class="toast toast-reminder" aria-hidden="true">
+          <div class="toast-head"><img src="icon.png" alt="">Dayflower<span class="toast-x">✕</span></div>
+          <p class="toast-title">Design review</p>
+          <p class="toast-text">In 5 minutes · Studio, 2nd floor</p>
+          <div class="toast-buttons"><span class="tb accent">Join</span><span class="tb">Snooze</span></div>
+        </div>
+
+        <div class="toast toast-invite" aria-hidden="true">
+          <div class="toast-head"><img src="icon.png" alt="">Dayflower<span class="toast-x">✕</span></div>
+          <p class="toast-title">Invitation: Product demo</p>
+          <p class="toast-text">Friday 13 November · 15:00 – 16:00</p>
+          <div class="toast-buttons"><span class="tb">Accept</span><span class="tb">Maybe</span><span class="tb">Decline</span></div>
+        </div>
+      </div>
+
+      <div class="wrap marquee-wrap">
+        <p class="marquee-label">One Join button for</p>
+        <div class="marquee" aria-label="Video meeting services Dayflower recognises">
+          <ul>
+            <li>Google Meet</li><li>Zoom</li><li>Microsoft Teams</li><li>Webex</li><li>Slack huddles</li>
+            <li>Whereby</li><li>GoTo Meeting</li><li>Jitsi</li><li>Amazon Chime</li>
+          </ul>
+          <ul aria-hidden="true">
+            <li>Google Meet</li><li>Zoom</li><li>Microsoft Teams</li><li>Webex</li><li>Slack huddles</li>
+            <li>Whereby</li><li>GoTo Meeting</li><li>Jitsi</li><li>Amazon Chime</li>
+          </ul>
+        </div>
+      </div>
+    </section>
 
     <section id="features">
       <div class="wrap">
-        <h2>What it does</h2>
-        <p class="lead">Dayflower shows your Google calendars in an app built to look and feel like part of Windows 11.</p>
-        <div class="grid">
-          <div class="card">
-            <h3>All your accounts together</h3>
-            <p>Personal Gmail and Google Workspace calendars side by side, in day, week, month and agenda views. A meeting on two of your accounts shows once.</p>
-          </div>
-          <div class="card">
-            <h3>Join in one click</h3>
-            <p>A Join button on every video meeting (Google Meet, Zoom, Teams, Webex and more): on the event, in its details and on its reminder.</p>
-          </div>
-          <div class="card">
-            <h3>The reminders you set in Google</h3>
-            <p>Desktop notifications at the times set in Google Calendar, with Snooze and a "starting now" alert for meetings.</p>
-          </div>
-          <div class="card">
-            <h3>Full editing</h3>
-            <p>Create, change and delete events, repeating ones included. Drag to move or resize, reply to invitations and see when guests are free.</p>
-          </div>
-          <div class="card">
-            <h3>Search and invitations</h3>
-            <p>Search across all your accounts, and get a notification with Accept, Maybe and Decline when an invitation arrives.</p>
-          </div>
-          <div class="card">
-            <h3>Made for Windows 11</h3>
-            <p>Follows light and dark mode and your accent colour, shows today's date on its icon, starts with Windows and updates itself.</p>
-          </div>
+        <p class="kicker reveal">What it does</p>
+        <h2 class="reveal">Everything your day needs, nothing it doesn't.</h2>
+        <p class="lead reveal">Dayflower shows your Google calendars in an app built to look and feel like part of Windows 11.</p>
+
+        <div class="bento">
+          <article class="tile t-accounts reveal">
+            <div class="tile-copy">
+              <h3>All your accounts together</h3>
+              <p>Personal Gmail and Google Workspace calendars side by side, in day, week, month and agenda views. A meeting on two of your accounts shows once.</p>
+            </div>
+            <div class="viz viz-accounts" aria-hidden="true">
+              <div class="chips">
+                <span class="chip" style="--c:#5b8def">Personal<small>Gmail</small></span>
+                <span class="chip" style="--c:#27a96c">Work<small>Workspace</small></span>
+                <span class="chip" style="--c:#ef8a3c">Running club<small>Gmail</small></span>
+              </div>
+              <svg class="flow" viewBox="0 0 60 120" preserveAspectRatio="none"><path d="M0 20 C30 20 30 60 60 60 M0 60 H60 M0 100 C30 100 30 60 60 60" /></svg>
+              <div class="mini-week">
+                <span class="col"><i style="--c:#5b8def;--t:10%;--h:22%"></i><i style="--c:#27a96c;--t:48%;--h:30%"></i></span>
+                <span class="col today"><i style="--c:#27a96c;--t:22%;--h:18%"></i><i style="--c:#ef8a3c;--t:70%;--h:20%"></i></span>
+                <span class="col"><i style="--c:#5b8def;--t:36%;--h:26%"></i></span>
+                <span class="col"><i style="--c:#27a96c;--t:8%;--h:40%"></i><i style="--c:#5b8def;--t:62%;--h:16%"></i></span>
+                <span class="col"><i style="--c:#ef8a3c;--t:30%;--h:22%"></i></span>
+              </div>
+            </div>
+          </article>
+
+          <article class="tile t-join reveal">
+            <div class="viz viz-join" aria-hidden="true">
+              <div class="mini-event">
+                <span class="bar"></span>
+                <span class="mini-text"><b>Weekly planning</b><small>10:00 – 10:45 · Google Meet</small></span>
+                <span class="join">Join</span>
+              </div>
+            </div>
+            <div class="tile-copy">
+              <h3>Join in one click</h3>
+              <p>A Join button on every video meeting (Google Meet, Zoom, Teams, Webex and more): on the event, in its details and on its reminder.</p>
+            </div>
+          </article>
+
+          <article class="tile t-remind reveal">
+            <div class="viz viz-remind" aria-hidden="true">
+              <div class="mini-toast">
+                <span class="mt-head"><img src="icon.png" alt="">Dayflower</span>
+                <b>Lunch with Alex</b>
+                <small>Starting now · Bistro Nova</small>
+                <span class="mt-buttons"><i>Snooze</i><i>Dismiss</i></span>
+              </div>
+            </div>
+            <div class="tile-copy">
+              <h3>The reminders you set in Google</h3>
+              <p>Desktop notifications at the times set in Google Calendar, with Snooze and a "starting now" alert for meetings.</p>
+            </div>
+          </article>
+
+          <article class="tile t-edit reveal">
+            <div class="viz viz-edit" aria-hidden="true">
+              <div class="hours"><span>13:00</span><span>14:00</span><span>15:00</span></div>
+              <div class="lane">
+                <div class="drop-spot"></div>
+                <div class="block">Design review<small>14:00 – 15:00</small><span class="handle"></span></div>
+                <svg class="cursor" viewBox="0 0 24 24"><path d="M5 3v15l4-4 3 7 3-1.3-3-6.7h6z" /></svg>
+              </div>
+            </div>
+            <div class="tile-copy">
+              <h3>Full editing</h3>
+              <p>Create, change and delete events, repeating ones included. Drag to move or resize, reply to invitations and see when guests are free.</p>
+            </div>
+          </article>
+
+          <article class="tile t-search reveal">
+            <div class="viz viz-search" aria-hidden="true">
+              <div class="search-box"><svg viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.5" /><path d="m13 13 4 4" /></svg><span class="typed">lunch</span><span class="caret"></span></div>
+              <div class="result"><span class="dot" style="--c:#5b8def"></span>Lunch with Alex<small>Wed 12:30</small></div>
+              <div class="rsvp"><span>Going?</span><i class="on">Yes</i><i>Maybe</i><i>No</i></div>
+            </div>
+            <div class="tile-copy">
+              <h3>Search and invitations</h3>
+              <p>Search across all your accounts, and get a notification with Accept, Maybe and Decline when an invitation arrives.</p>
+            </div>
+          </article>
+
+          <article class="tile t-windows reveal">
+            <div class="tile-copy">
+              <h3>Made for Windows 11</h3>
+              <p>Follows light and dark mode and your accent colour, shows today's date on its icon, starts with Windows and updates itself.</p>
+            </div>
+            <div class="viz viz-windows" aria-hidden="true">
+              <div class="theme-split"><span class="light"><i></i><i></i><i></i></span><span class="dark"><i></i><i></i><i></i></span></div>
+              <div class="taskbar">
+                <span class="tb-icon"></span><span class="tb-icon"></span>
+                <span class="tb-pad"><span class="ring"></span><span class="ring"></span><span data-today></span></span>
+                <span class="tb-icon"></span>
+              </div>
+              <div class="swatches"><i style="--c:#0067c0"></i><i style="--c:#c42b1c"></i><i style="--c:#e3008c"></i><i style="--c:#107c10"></i><i style="--c:#f7630c"></i></div>
+            </div>
+          </article>
         </div>
       </div>
     </section>
 
     <section id="google-data">
       <div class="wrap">
-        <h2>How Dayflower uses your Google data</h2>
-        <p class="lead">When you add a Google account, Google asks you to allow these permissions. Dayflower uses each one only for what's described here, on your PC.</p>
-        <div class="data">
-          <dl>
-            <div class="row">
-              <dt>See your calendars<code>calendar.calendarlist.readonly</code></dt>
-              <dd>Lists your calendars, with their names and colours, so you can choose which ones Dayflower shows.</dd>
-            </div>
-            <div class="row">
-              <dt>See and edit your events<code>calendar.events</code></dt>
-              <dd>Shows your events, Join links and reminders, and makes the changes you ask for: creating, changing and deleting events, replying to invitations, adding a Google Meet link.</dd>
-            </div>
-            <div class="row">
-              <dt>See when guests are free<code>calendar.events.freebusy</code></dt>
-              <dd>Optional. When you plan a meeting, shows when the people you invite are busy, without showing their events.</dd>
-            </div>
-            <div class="row">
-              <dt>Your email address and name<code>openid, email, profile</code></dt>
-              <dd>Shows which Google account each calendar belongs to, and tells your accounts apart.</dd>
-            </div>
-          </dl>
+        <p class="kicker reveal">Privacy by design</p>
+        <h2 class="reveal">How Dayflower uses your Google data</h2>
+        <p class="lead reveal">When you add a Google account, Google asks you to allow these permissions. Dayflower uses each one only for what's described here, on your PC.</p>
+
+        <div class="direct reveal" aria-hidden="true">
+          <div class="node"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg><b>Your PC</b><small>Dayflower</small></div>
+          <div class="wire">
+            <span class="pulse"></span><span class="pulse p2"></span>
+            <em>Direct and encrypted</em>
+            <strong>No Dayflower servers in between</strong>
+          </div>
+          <div class="node"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4m6-4v4" /></svg><b>Google</b><small>Your calendars</small></div>
         </div>
+
+        <dl class="perms">
+          <div class="perm reveal">
+            <dt><span class="perm-icon"><svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9" /></svg></span>See your calendars<code>calendar.calendarlist.readonly</code></dt>
+            <dd>Lists your calendars, with their names and colours, so you can choose which ones Dayflower shows.</dd>
+          </div>
+          <div class="perm reveal">
+            <dt><span class="perm-icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 14h3" /></svg></span>See and edit your events<code>calendar.events</code></dt>
+            <dd>Shows your events, Join links and reminders, and makes the changes you ask for: creating, changing and deleting events, replying to invitations, adding a Google Meet link.</dd>
+          </div>
+          <div class="perm reveal">
+            <dt><span class="perm-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3" /><circle cx="17" cy="10" r="2.5" /><path d="M3 19c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5m.5-4c2.3 0 4 1.2 5 3.5" /></svg></span>See when guests are free<code>calendar.events.freebusy</code><span class="badge">Optional</span></dt>
+            <dd>When you plan a meeting, shows when the people you invite are busy, without showing their events.</dd>
+          </div>
+          <div class="perm reveal">
+            <dt><span class="perm-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.2-4 4.3-6 8-6s6.8 2 8 6" /></svg></span>Your email address and name<code>openid, email, profile</code></dt>
+            <dd>Shows which Google account each calendar belongs to, and tells your accounts apart.</dd>
+          </div>
+        </dl>
+
         <ul class="points">
-          <li><strong>No servers.</strong> Dayflower talks directly from your PC to Google. The developer never receives, stores or sees your data.</li>
-          <li><strong>Kept on your PC.</strong> Your calendar is cached on your PC so Dayflower works offline, and your Google sign-in is encrypted for your Windows account.</li>
-          <li><strong>No tracking.</strong> No analytics, telemetry or ads, and your data is never sold or shared.</li>
-          <li><strong>Yours to remove.</strong> Removing an account or uninstalling Dayflower deletes its data from your PC; you can withdraw its access at <a href="https://myaccount.google.com/permissions">Google account permissions</a>.</li>
+          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="7" rx="2" /><rect x="4" y="13" width="16" height="7" rx="2" /><path d="M3 3l18 18" /></svg></span><strong>No servers.</strong> Dayflower talks directly from your PC to Google. The developer never receives, stores or sees your data.</li>
+          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg></span><strong>Kept on your PC.</strong> Your calendar is cached on your PC so Dayflower works offline, and your Google sign-in is encrypted for your Windows account.</li>
+          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" /><circle cx="12" cy="12" r="2.5" /><path d="M4 4l16 16" /></svg></span><strong>No tracking.</strong> No analytics, telemetry or ads, and your data is never sold or shared.</li>
+          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3m-7 0 1 13h8l1-13" /></svg></span><strong>Yours to remove.</strong> Removing an account or uninstalling Dayflower deletes its data from your PC; you can withdraw its access at <a href="https://myaccount.google.com/permissions">Google account permissions</a>.</li>
         </ul>
-        <p class="limited">Dayflower's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Read the full <a href="privacy.html">privacy policy</a>.</p>
+        <p class="limited reveal">Dayflower's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Read the full <a href="privacy.html">privacy policy</a>.</p>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="wrap">
+        <div class="cta-card reveal">
+          <div class="cta-dots" aria-hidden="true"></div>
+          <h2>Your whole week, at home on Windows.</h2>
+          <p>Free, open source and made for Windows 11. Installs without admin rights and keeps itself up to date.</p>
+          <div class="actions">
+            <a class="button large light" href="https://github.com/kstawi/dayflower/releases">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" /></svg>
+              Download for Windows
+            </a>
+            <a class="button large outline-light" href="https://github.com/kstawi/dayflower">View on GitHub</a>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
+      <a class="brand" href="./"><img src="icon.png" alt="">Dayflower</a>
       <nav aria-label="Footer">
         <a href="privacy.html">Privacy policy</a>
         <a href="https://github.com/kstawi/dayflower">Source code</a>
