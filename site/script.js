@@ -1,14 +1,11 @@
 // Dayflower's homepage: today's date on the icon, the header's edge once the page scrolls, and sections fading in.
 // The page works without it (index.html marks <html> with .js first, so hidden sections never flash).
 document.addEventListener('DOMContentLoaded', () => {
-  const day = String(new Date().getDate());
-  document.querySelectorAll('[data-today]').forEach((el) => { el.textContent = day; });
-  const pad = document.querySelector('.pad');
-  if (pad) {
-    pad.hidden = false;
-    document.querySelector('.pad-note').hidden = false;
-    document.querySelector('.pad-static').hidden = true;
-  }
+  // Today's icon: the same dated pad Dayflower shows on the taskbar (tools/MakeAssets.ps1 draws both).
+  const today = `days/day-${new Date().getDate()}.png`;
+  document.querySelectorAll('img[data-day-icon]').forEach((img) => { img.src = today; });
+  const note = document.querySelector('.pad-note');
+  if (note) note.hidden = false;
 
   const header = document.querySelector('.site-header');
   const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 8);

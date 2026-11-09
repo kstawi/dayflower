@@ -7,7 +7,7 @@
 #    and a curling corner, showing a grid of days with today highlighted. It can't change from day to day, so it shows
 #    no date;
 #  - a window icon for each day of the month, the same pad with that date in large type, as the Calendar icon on a
-#    Mac. The running app shows today's in Alt+Tab and Task View.
+#    Mac. The running app shows today's in Alt+Tab and Task View, and the homepage (site\days) shows today's too.
 #
 # The style follows Microsoft's current app icons (such as Outlook's): layers that cast soft shadows on each other,
 # gradients on a navy-to-sky ramp lit from the top left, and tinted rather than plain whites, all drawn straight on.
@@ -176,8 +176,12 @@ function Draw-Icon([System.Drawing.Graphics] $g, [single] $x, [single] $y, [sing
         $bounds = $digits.GetBounds(); $refBounds = $reference.GetBounds()
         $reference.Dispose()
         $scale = [Math]::Min(($boxRight - $boxLeft) / $refBounds.Width, ($boxBottom - $boxTop) / $refBounds.Height)
+        # Centred on the sheet as far as the curl allows: a one-digit date in the middle, a two-digit one filling the box
+        # (which the curl pushes left).
+        $digitsWidth = $bounds.Width * $scale
+        $left = [Math]::Min(($l + $r - $digitsWidth) / 2, $boxRight - $digitsWidth)
         $fit = New-Object System.Drawing.Drawing2D.Matrix
-        $fit.Translate([single]($boxLeft + (($boxRight - $boxLeft) - $bounds.Width * $scale) / 2), [single]($boxTop + (($boxBottom - $boxTop) - $bounds.Height * $scale) / 2))
+        $fit.Translate([single]$left, [single]($boxTop + (($boxBottom - $boxTop) - $bounds.Height * $scale) / 2))
         $fit.Scale([single]$scale, [single]$scale)
         $fit.Translate([single](-$bounds.X), [single](-$bounds.Y))
         $digits.Transform($fit)
@@ -386,4 +390,13 @@ foreach ($day in 1..31) {
     Save-Ico (Join-Path $days "day-$day.ico") @(16, 20, 24, 32, 40, 48, 64) $day
 }
 
-Write-Host "Wrote assets to $assets"
+# The homepage shows today's icon too: the same dated pads, large.
+$siteDays = Join-Path $PSScriptRoot '..\site\days'
+New-Item -ItemType Directory -Force -Path $siteDays | Out-Null
+foreach ($day in 1..31) {
+    $bmp = New-Image 256 256 1.0 $day
+    $bmp.Save((Join-Path $siteDays "day-$day.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+}
+
+Write-Host "Wrote assets to $assets and the homepage's dated icons to $siteDays"
