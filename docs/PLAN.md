@@ -393,10 +393,11 @@ Steps 1 and 6 depend on Google and SignPath, so they start first; the rest is co
    are now declared under Data access, which they weren't (Google counts only `calendar.events` as sensitive; the
    calendar list and free/busy are not), with the reason for `calendar.events` written in. Google's order from here:
    verify and publish the brand (Branding › Verify brand), then submit data access with the demo video's YouTube
-   link. The brand check (automatic, a few minutes) said twice, on 2026-11-07 and 2026-11-09, that "the home page
-   `https://kstawi.github.io/dayflower/` isn't registered to you"; the exact homepage got a Search Console property
-   of its own on 2026-11-09, so the retry is from 2026-11-10, and failing that, a domain of its own. The demo video
-   was recorded and linked under Data access on 2026-11-09. Status, the scope reason and the video's shot list:
+   link. The brand check (automatic, a few minutes) said three times, on 2026-11-07, 11-09 and 11-10, that "the home
+   page `https://kstawi.github.io/dayflower/` isn't registered to you", the last time more than a day after the exact
+   homepage got a Search Console property of its own. The demo video was recorded and linked under Data access on
+   2026-11-09. On 2026-11-10 the brand result was appealed and data access submitted with it (one form); a manual
+   review takes 2–3 business days, and if the brand is refused, a domain of its own is the fallback. Status, the scope reason and the video's shot list:
    [google-verification.md](google-verification.md). The homepage shows the week view with made-up events, in light or
    dark to match the visitor's setting (2026-11-09; the account shown is made up).
 2. **Unpackaged build, checked first.** Dayflower built as a self-contained app (the .NET runtime and Windows App SDK

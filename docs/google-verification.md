@@ -12,9 +12,9 @@ non-sensitive. The Google Cloud project has one OAuth client, **Dayflower deskto
 | Search Console | `https://kstawi.github.io/` verified (HTML file in the `kstawi.github.io` repo), 2026-11-06; the exact homepage `https://kstawi.github.io/dayflower/` added 2026-11-09 (verified through its parent) |
 | Branding | Home page, privacy policy and authorized domain `kstawi.github.io` saved |
 | Data access | All six scopes declared, with the reason below |
-| Brand verification | Checked 2026-11-07 and again 2026-11-09: "home page `https://kstawi.github.io/dayflower/` isn't registered to you". Retry from 2026-11-10, now that the exact homepage has its own property (Branding › Show problems › Problems resolved). If it fails again: a domain of its own, as in google-cloud-setup.md |
+| Brand verification | The automatic check failed on 2026-11-07, 11-09 and 11-10: "home page `https://kstawi.github.io/dayflower/` isn't registered to you", the last time more than a day after the exact homepage got its own property. Appealed on 2026-11-10 (Show problems › The problems found are incorrect › "The result is incorrect": both properties are verified, and a github.io address allows no DNS proof); a manual review takes 2–3 business days. If it's refused: a domain of its own, as in google-cloud-setup.md |
 | Demo video | Recorded 2026-11-09 (5:44, captions, no sound), on YouTube (unlisted) and linked under Data access. The link stays out of this public repo: the video shows the client ID and the signed-in accounts. It leaves out two shots: replying to an invitation (11) and removing the account (14), as removing revokes access for every Dayflower signed in with that account. Google showed the "already has some access" consent, so the scopes appear under "6 services" |
-| Data access verification | Ready to submit: Verification Center › Prepare for verification, once the brand check passes |
+| Data access verification | Submitted on 2026-11-10 together with the brand appeal, which Google's form combines; Verification Center: "brand and data access are being checked". Google replies by email to the developer contact address |
 
 ## Why Dayflower needs `calendar.events`
 
