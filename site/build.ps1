@@ -14,7 +14,6 @@ $out = Join-Path $root '_site'
 if (Test-Path $out) { Remove-Item $out -Recurse -Force }
 New-Item $out -ItemType Directory | Out-Null
 Get-ChildItem $PSScriptRoot -File | Where-Object { $_.Name -ne 'build.ps1' } | Copy-Item -Destination $out
-Copy-Item (Join-Path $PSScriptRoot 'days') $out -Recurse   # today's icon, one per day of the month
 
 $utf8 = New-Object Text.UTF8Encoding $false
 [Console]::OutputEncoding = $utf8

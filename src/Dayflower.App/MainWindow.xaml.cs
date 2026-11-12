@@ -80,11 +80,8 @@ public sealed partial class MainWindow : Window
         // Tall caption buttons (48 px) line up with the pane button and the search box.
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppTitleBar.SizeChanged += (_, _) => CenterSearchBox();
-        ShowTodayIcon();
-        _iconClock = DispatcherQueue.CreateTimer();
-        _iconClock.Interval = TimeSpan.FromMinutes(1);
-        _iconClock.Tick += (_, _) => ShowTodayIcon();
-        _iconClock.Start();
+        AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
+        TaskbarIdentity.Apply(WinRT.Interop.WindowNative.GetWindowHandle(this));
         ApplyTheme();
         SizeAndCenter();
 
@@ -746,39 +743,6 @@ public sealed partial class MainWindow : Window
         double shown = Math.Clamp(width / PaneWidth, 0, 1);
         ContentArea.CornerRadius = new CornerRadius(8 * shown, 0, 0, 0);
         ContentArea.BorderThickness = new Thickness(width > 0.5 ? 1 : 0, 1, 0, 0);
-    }
-
-    // ---- Window icon ----------------------------------------------------------------------------------------
-
-    private readonly Microsoft.UI.Dispatching.DispatcherQueueTimer _iconClock;
-    private int _iconDay;
-
-    /// <summary>
-    /// Shows today's date on the window's icon (Alt+Tab and Task View) and on its taskbar button (see
-    /// <see cref="TaskbarDate"/>), like the Calendar icon on a Mac. Checked every minute, so it changes at midnight and
-    /// after sleep. Notifications show the plain logo.
-    /// </summary>
-    private async void ShowTodayIcon()
-    {
-        int day = DateTime.Now.Day;
-        string icon = Path.Combine(AppContext.BaseDirectory, "Assets", "Days", $"day-{day}.ico");
-        if (day == _iconDay)
-        {
-            return;
-        }
-
-        bool redraw = _iconDay != 0 && AppWindow.IsVisible;
-        try
-        {
-            AppWindow.SetIcon(icon);
-            _iconDay = day;
-            await TaskbarDate.ShowAsync(WinRT.Interop.WindowNative.GetWindowHandle(this), icon, redraw);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Couldn't show today's icon");
-            AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "app.ico"));
-        }
     }
 
     // ---- Title bar -------------------------------------------------------------------------------------------

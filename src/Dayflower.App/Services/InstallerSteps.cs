@@ -48,7 +48,7 @@ public static class InstallerSteps
 
         try
         {
-            string icons = TaskbarDate.OldTempFolderFor(id);
+            string icons = Path.Combine(Path.GetTempPath(), id); // where the first betas kept a copy of today's icon
             if (Directory.Exists(icons))
             {
                 Directory.Delete(icons, recursive: true);

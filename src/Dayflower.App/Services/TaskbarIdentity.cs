@@ -9,83 +9,37 @@ using Velopack.Locators;
 namespace Dayflower.Services;
 
 /// <summary>
-/// Puts today's date on Dayflower's taskbar button, like the Calendar icon on a Mac.
-/// <para>
-/// Windows 11 draws a window's taskbar button from the Start menu shortcut that shares the window's taskbar identity
-/// (app ID), and ignores the window's own icon. So an installed copy points its Start menu shortcut, and any pinned copy
-/// of it, at today's icon in its own folder; that also dates the Start menu entry. The taskbar reads a shortcut's icon
-/// only when it creates a button, so when the date changes while the window is open, the window briefly takes another
-/// app ID and then its own again, and the taskbar makes the button afresh. (Found by trying: re-setting the same app ID
-/// does nothing.)
-/// </para>
-/// <para>
-/// A development build has no such shortcut: its window gets an app ID of its own that no shortcut carries, and the
-/// taskbar then shows the window's own (dated) icon. The MSIX package's button always shows the package logo.
-/// </para>
+/// Gives an installed copy's window the taskbar identity (app ID) its Start menu shortcut carries, however Dayflower
+/// was started, so the window and a pinned button are one taskbar button with the shortcut's icon.
 /// </summary>
-public static partial class TaskbarDate
+public static partial class TaskbarIdentity
 {
-    private const string DevelopmentAppId = "kstawi.Dayflower.Development";
-
     private static readonly Guid AppIdKey = new("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"); // PKEY_AppUserModel_ID, pid 5
 
-    /// <summary>
-    /// Shows <paramref name="icon"/> (today's) on the window's taskbar button. <paramref name="redraw"/> makes the
-    /// taskbar redraw a button it has already made, for when the date changes while the window is open.
-    /// </summary>
-    public static async Task ShowAsync(IntPtr window, string icon, bool redraw)
+    public static void Apply(IntPtr window)
     {
-        if (AppIdentity.IsPackaged || AppId() is not { } appId)
+        if (AppIdentity.IsPackaged || AppIdentity.InstalledAppId is null)
         {
             return;
         }
 
-        if (AppIdentity.InstalledAppId is not null)
-        {
-            foreach (string shortcut in OurShortcuts())
-            {
-                SetShortcutIcon(shortcut, icon);
-            }
-        }
-
-        if (redraw)
-        {
-            await RedrawAsync(window, appId);
-        }
-        else
-        {
-            SetWindowAppId(window, appId);
-        }
-    }
-
-    /// <summary>
-    /// %TEMP%\{name}, where the first betas kept a copy of today's icon (it turned out not to be needed); removed on
-    /// uninstall.
-    /// </summary>
-    public static string OldTempFolderFor(string name) => Path.Combine(Path.GetTempPath(), name);
-
-    private static async Task RedrawAsync(IntPtr window, string appId)
-    {
-        SetWindowAppId(window, appId + ".Redraw");
-        await Task.Delay(300);
-        SetWindowAppId(window, appId);
-    }
-
-    /// <summary>The installed copy's app ID (Velopack's, which its shortcut carries), or the development build's.</summary>
-    private static string? AppId()
-    {
-        if (AppIdentity.InstalledAppId is null)
-        {
-            return DevelopmentAppId;
-        }
-
         try
         {
-            return VelopackLocator.Current.AppUserModelId;
+            if (VelopackLocator.Current.AppUserModelId is { } appId)
+            {
+                SetWindowAppId(window, appId);
+            }
         }
         catch (Exception)
         {
-            return null;
+            // The window keeps the process's app ID.
+        }
+
+        // shortcut: betas up to 0.7.0-beta.4 pointed these shortcuts at a dated icon in a folder updates no longer
+        // have; drop this once no copy that old is left.
+        foreach (string shortcut in OurShortcuts())
+        {
+            ResetDatedIcon(shortcut);
         }
     }
 
@@ -130,8 +84,8 @@ public static partial class TaskbarDate
         }
     }
 
-    /// <summary>Points the shortcut at the icon, if it isn't already; returns whether it changed.</summary>
-    private static bool SetShortcutIcon(string shortcut, string icon)
+    /// <summary>Points a shortcut that shows a dated icon (Assets\Days\day-N.ico) back at Dayflower.exe's own icon.</summary>
+    private static void ResetDatedIcon(string shortcut)
     {
         var link = (IShellLinkW)new ShellLink();
         try
@@ -140,19 +94,18 @@ public static partial class TaskbarDate
             file.Load(shortcut, 2); // STGM_READWRITE
             char[] current = new char[1024];
             link.GetIconLocation(current, current.Length, out _);
-            if (string.Equals(new string(current).TrimEnd('\0'), icon, StringComparison.OrdinalIgnoreCase))
+            if (!new string(current).TrimEnd('\0').Contains(@"\Assets\Days\", StringComparison.OrdinalIgnoreCase))
             {
-                return false;
+                return;
             }
 
-            link.SetIconLocation(icon, 0);
+            link.SetIconLocation(Environment.ProcessPath!, 0);
             file.Save(shortcut, true);
             SHChangeNotify(0x00002000, 0x0005, shortcut, IntPtr.Zero); // SHCNE_UPDATEITEM, SHCNF_PATHW
-            return true;
         }
         catch (Exception)
         {
-            return false; // A shortcut that can't be changed keeps its icon.
+            // A shortcut that can't be changed keeps its icon.
         }
         finally
         {
@@ -162,24 +115,17 @@ public static partial class TaskbarDate
 
     private static void SetWindowAppId(IntPtr window, string appId)
     {
+        SHGetPropertyStoreForWindow(window, typeof(IPropertyStore).GUID, out var store);
+        var key = new PropertyKey { FormatId = AppIdKey, PropertyId = 5 };
+        var value = new PropVariant { Type = 31, Pointer = Marshal.StringToCoTaskMemUni(appId) }; // VT_LPWSTR
         try
         {
-            SHGetPropertyStoreForWindow(window, typeof(IPropertyStore).GUID, out var store);
-            var key = new PropertyKey { FormatId = AppIdKey, PropertyId = 5 };
-            var value = new PropVariant { Type = 31, Pointer = Marshal.StringToCoTaskMemUni(appId) }; // VT_LPWSTR
-            try
-            {
-                store.SetValue(ref key, ref value);
-            }
-            finally
-            {
-                Marshal.FreeCoTaskMem(value.Pointer);
-                Marshal.ReleaseComObject(store);
-            }
+            store.SetValue(ref key, ref value);
         }
-        catch (Exception)
+        finally
         {
-            // The window keeps the process's app ID.
+            Marshal.FreeCoTaskMem(value.Pointer);
+            Marshal.ReleaseComObject(store);
         }
     }
 

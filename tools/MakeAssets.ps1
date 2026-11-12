@@ -2,12 +2,9 @@
 # Copyright (C) 2026 kstawi
 # Licensed under the GNU General Public License v3.0; see the LICENSE file.
 #
-# Development aid: draws Dayflower's icons and writes them to src\Dayflower.App\Assets:
-#  - the package icon (taskbar, Start, Store, notifications): a tear-off calendar pad with a blue header, binder rings
-#    and a curling corner, showing a grid of days with today highlighted. It can't change from day to day, so it shows
-#    no date;
-#  - a window icon for each day of the month, the same pad with that date in large type, as the Calendar icon on a
-#    Mac. The running app shows today's in Alt+Tab and Task View, and the homepage (site\days) shows today's too.
+# Development aid: draws Dayflower's icon and writes it to src\Dayflower.App\Assets at every size Windows uses
+# (taskbar, Start, Store, notifications, the .exe and the window): a tear-off calendar pad with a blue header, binder
+# rings and a curling corner, showing a grid of days with today highlighted.
 #
 # The style follows Microsoft's current app icons (such as Outlook's): layers that cast soft shadows on each other,
 # gradients on a navy-to-sky ramp lit from the top left, and tinted rather than plain whites, all drawn straight on.
@@ -15,11 +12,10 @@
 #
 # Run it with Windows PowerShell, which includes System.Drawing:
 #   powershell -ExecutionPolicy Bypass -File tools\MakeAssets.ps1
-#   powershell -ExecutionPolicy Bypass -File tools\MakeAssets.ps1 -Preview preview.png                 (all sizes)
-#   powershell -ExecutionPolicy Bypass -File tools\MakeAssets.ps1 -Preview preview.png -PreviewDay 26  (a dated one)
+#   powershell -ExecutionPolicy Bypass -File tools\MakeAssets.ps1 -Preview preview.png   (all sizes)
 # The results are committed, so a normal build doesn't need this.
 
-param([string] $Preview, [int] $PreviewDay = 0)
+param([string] $Preview)
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
@@ -91,10 +87,9 @@ function Shadow($g, $shape, [int] $pixels, [double] $strength = 1, [double] $dis
 }
 
 # Draws the icon in a size x size square at (x, y): a tear-off calendar pad a few sheets thick, with a blue header, two
-# binder rings and its bottom right corner curling up. With a $day (1-31) the front sheet shows that date; without, a
-# grid of days with today highlighted. Designed on a 256-unit square; $pixels is the size it ends up on screen, which
-# decides how much detail fits.
-function Draw-Icon([System.Drawing.Graphics] $g, [single] $x, [single] $y, [single] $size, [int] $pixels, [int] $day = 0) {
+# binder rings, its bottom right corner curling up and a grid of days with today highlighted. Designed on a 256-unit
+# square; $pixels is the size it ends up on screen, which decides how much detail fits.
+function Draw-Icon([System.Drawing.Graphics] $g, [single] $x, [single] $y, [single] $size, [int] $pixels) {
     $state = $g.Save()
     $g.TranslateTransform($x, $y)
     $g.ScaleTransform($size / 256, $size / 256)
@@ -161,68 +156,39 @@ function Draw-Icon([System.Drawing.Graphics] $g, [single] $x, [single] $y, [sing
     }
 
     $bodyTop = $t + $header
-    if ($day -gt 0) {
-        # The date, as large as the sheet allows, every date at the height of a two-digit one, and clear of the curl. Digits
-        # are round at their corners, so the box may reach a little past the fold line before the curl would cut a stroke.
-        $boxLeft = $l + 20; $boxRight = $r - 20; $boxTop = $bodyTop + 14; $boxBottom = $b - 18
-        if ($small) { $boxLeft = $l + $unit; $boxRight = $r - 2 * $unit; $boxTop = $bodyTop + $unit; $boxBottom = $b - $unit }
-        $over = ($boxRight - ($r - $curl)) + ($boxBottom - ($b - $curl)) - $curl * 0.75
-        if ($over -gt 0) { $boxRight -= $over / 2; $boxBottom -= $over / 2 }
-        $family = New-Object System.Drawing.FontFamily ('Segoe UI Semibold')
-        $digits = New-Object System.Drawing.Drawing2D.GraphicsPath
-        $digits.AddString([string]$day, $family, [int][System.Drawing.FontStyle]::Regular, [single]100, (New-Object System.Drawing.PointF (0, 0)), [System.Drawing.StringFormat]::GenericTypographic)
-        $reference = New-Object System.Drawing.Drawing2D.GraphicsPath
-        $reference.AddString('28', $family, [int][System.Drawing.FontStyle]::Regular, [single]100, (New-Object System.Drawing.PointF (0, 0)), [System.Drawing.StringFormat]::GenericTypographic)
-        $bounds = $digits.GetBounds(); $refBounds = $reference.GetBounds()
-        $reference.Dispose()
-        $scale = [Math]::Min(($boxRight - $boxLeft) / $refBounds.Width, ($boxBottom - $boxTop) / $refBounds.Height)
-        # Centred on the sheet as far as the curl allows: a one-digit date in the middle, a two-digit one filling the box
-        # (which the curl pushes left).
-        $digitsWidth = $bounds.Width * $scale
-        $left = [Math]::Min(($l + $r - $digitsWidth) / 2, $boxRight - $digitsWidth)
-        $fit = New-Object System.Drawing.Drawing2D.Matrix
-        $fit.Translate([single]$left, [single]($boxTop + (($boxBottom - $boxTop) - $bounds.Height * $scale) / 2))
-        $fit.Scale([single]$scale, [single]$scale)
-        $fit.Translate([single](-$bounds.X), [single](-$bounds.Y))
-        $digits.Transform($fit)
-        $g.FillPath((Gradient $boxLeft $boxTop ($boxRight - $boxLeft) ($boxBottom - $boxTop) $royal $navy 90), $digits)
-        $digits.Dispose(); $fit.Dispose(); $family.Dispose()
+    # A grid of days, today highlighted: four by three, three by two at medium sizes, two by two when small.
+    $columns = 4; $rows = 3; $today = 5; $ratio = 0.5
+    $areaLeft = $l + 26; $areaRight = $r - 30; $areaTop = $bodyTop + 18; $areaBottom = $b - 24
+    if ($pixels -le 48) { $columns = 3; $rows = 2; $today = 0; $ratio = 0.55 }
+    $cell = [Math]::Min(($areaRight - $areaLeft) / ($columns + ($columns - 1) * $ratio), ($areaBottom - $areaTop) / ($rows + ($rows - 1) * $ratio))
+    $gap = $cell * $ratio
+    $startX = $areaLeft + (($areaRight - $areaLeft) - ($cell * $columns + $gap * ($columns - 1))) / 2
+    $startY = $areaTop + (($areaBottom - $areaTop) - ($cell * $rows + $gap * ($rows - 1))) / 2
+    $grey = $dayGrey
+    if ($small) {
+        # Each day a whole block of pixels with a clear gap, in a stronger blue-grey.
+        $columns = 2; $rows = 2; $today = 0; $grey = Color 140 172 216
+        $cell = [Math]::Max(2 * $unit, (Snap 40))
+        $gap = [Math]::Max($unit, (Snap 18))
+        $startX = Snap ($l + (($r - $l) - (2 * $cell + $gap)) / 2 - $unit / 2)
+        $startY = Snap ($bodyTop + (($b - $bodyTop) - (2 * $cell + $gap)) / 2)
     }
-    else {
-        # A grid of days, today highlighted: four by three, three by two at medium sizes, two by two when small.
-        $columns = 4; $rows = 3; $today = 5; $ratio = 0.5
-        $areaLeft = $l + 26; $areaRight = $r - 30; $areaTop = $bodyTop + 18; $areaBottom = $b - 24
-        if ($pixels -le 48) { $columns = 3; $rows = 2; $today = 0; $ratio = 0.55 }
-        $cell = [Math]::Min(($areaRight - $areaLeft) / ($columns + ($columns - 1) * $ratio), ($areaBottom - $areaTop) / ($rows + ($rows - 1) * $ratio))
-        $gap = $cell * $ratio
-        $startX = $areaLeft + (($areaRight - $areaLeft) - ($cell * $columns + $gap * ($columns - 1))) / 2
-        $startY = $areaTop + (($areaBottom - $areaTop) - ($cell * $rows + $gap * ($rows - 1))) / 2
-        $grey = $dayGrey
-        if ($small) {
-            # Each day a whole block of pixels with a clear gap, in a stronger blue-grey.
-            $columns = 2; $rows = 2; $today = 0; $grey = Color 140 172 216
-            $cell = [Math]::Max(2 * $unit, (Snap 40))
-            $gap = [Math]::Max($unit, (Snap 18))
-            $startX = Snap ($l + (($r - $l) - (2 * $cell + $gap)) / 2 - $unit / 2)
-            $startY = Snap ($bodyTop + (($b - $bodyTop) - (2 * $cell + $gap)) / 2)
-        }
 
-        for ($row = 0; $row -lt $rows; $row++) {
-            for ($col = 0; $col -lt $columns; $col++) {
-                $cx = $startX + $col * ($cell + $gap); $cy = $startY + $row * ($cell + $gap)
-                $cw = $cell; $ch = $cell
-                if ($pixels -le 48) {
-                    $x2 = Snap ($cx + $cw); $y2 = Snap ($cy + $ch); $cx = Snap $cx; $cy = Snap $cy; $cw = $x2 - $cx; $ch = $y2 - $cy
-                }
-
-                # Square corners at the smallest sizes, where a rounded block of a few pixels would only blur.
-                $corner = $cell * 0.3
-                if ($small) { $corner = [Math]::Min($corner, $unit * 0.35) }
-                $square = Rounded $cx $cy $cw $ch $corner
-                if ($row * $columns + $col -eq $today) { Fill $g $square (Gradient $cx $cy $cw $ch $sky $royal) }
-                else { Fill $g $square (New-Object System.Drawing.SolidBrush $grey) }
-                $square.Dispose()
+    for ($row = 0; $row -lt $rows; $row++) {
+        for ($col = 0; $col -lt $columns; $col++) {
+            $cx = $startX + $col * ($cell + $gap); $cy = $startY + $row * ($cell + $gap)
+            $cw = $cell; $ch = $cell
+            if ($pixels -le 48) {
+                $x2 = Snap ($cx + $cw); $y2 = Snap ($cy + $ch); $cx = Snap $cx; $cy = Snap $cy; $cw = $x2 - $cx; $ch = $y2 - $cy
             }
+
+            # Square corners at the smallest sizes, where a rounded block of a few pixels would only blur.
+            $corner = $cell * 0.3
+            if ($small) { $corner = [Math]::Min($corner, $unit * 0.35) }
+            $square = Rounded $cx $cy $cw $ch $corner
+            if ($row * $columns + $col -eq $today) { Fill $g $square (Gradient $cx $cy $cw $ch $sky $royal) }
+            else { Fill $g $square (New-Object System.Drawing.SolidBrush $grey) }
+            $square.Dispose()
         }
     }
 
@@ -241,14 +207,14 @@ function Draw-Icon([System.Drawing.Graphics] $g, [single] $x, [single] $y, [sing
 }
 
 # A transparent width x height image with the icon centred, taking up $fill of the shorter side.
-function New-Image([int] $width, [int] $height, [double] $fill, [int] $day = 0) {
+function New-Image([int] $width, [int] $height, [double] $fill) {
     $bmp = New-Object System.Drawing.Bitmap ($width, $height, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
     $g = [System.Drawing.Graphics]::FromImage($bmp)
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
     $g.Clear([System.Drawing.Color]::Transparent)
     $size = [Math]::Min($width, $height) * $fill
-    Draw-Icon $g (($width - $size) / 2) (($height - $size) / 2) $size ([int]$size) $day
+    Draw-Icon $g (($width - $size) / 2) (($height - $size) / 2) $size ([int]$size)
     $g.Dispose()
     return $bmp
 }
@@ -296,9 +262,9 @@ function Get-IconBitmap([System.Drawing.Bitmap] $bmp) {
     return , $stream.ToArray()
 }
 
-function Save-Ico([string] $path, [int[]] $icoSizes, [int] $day = 0) {
+function Save-Ico([string] $path, [int[]] $icoSizes) {
     $images = foreach ($size in $icoSizes) {
-        $bmp = New-Image $size $size 1.0 $day
+        $bmp = New-Image $size $size 1.0
         if ($size -ge 256) {
             $stream = New-Object System.IO.MemoryStream
             $bmp.Save($stream, [System.Drawing.Imaging.ImageFormat]::Png)
@@ -347,7 +313,7 @@ if ($Preview) {
     foreach ($band in @(0, 380)) {
         $x = 20
         foreach ($s in $sizes) {
-            $icon = New-Image $s $s 1.0 $PreviewDay
+            $icon = New-Image $s $s 1.0
             $g.DrawImage($icon, $x, $band + 20, $s, $s)
             if ($s -le 64) { $g.DrawImage($icon, $x, $band + 100, 4 * $s, 4 * $s) }
             $x += [Math]::Max($s, 4 * [Math]::Min($s, 64)) + 24
@@ -380,23 +346,7 @@ foreach ($size in @(16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256)) {
     Save-Png "Square44x44Logo.targetsize-${size}_altform-lightunplated.png" $size $size 1.0
 }
 
-# app.ico, for the .exe and for the window until it shows today's date.
+# app.ico, for the .exe and the window.
 Save-Ico (Join-Path $assets 'app.ico') @(16, 20, 24, 32, 40, 48, 64, 256)
 
-# The window's icon for each day of the month, at the sizes the taskbar and Alt+Tab use.
-$days = Join-Path $assets 'Days'
-New-Item -ItemType Directory -Force -Path $days | Out-Null
-foreach ($day in 1..31) {
-    Save-Ico (Join-Path $days "day-$day.ico") @(16, 20, 24, 32, 40, 48, 64) $day
-}
-
-# The homepage shows today's icon too: the same dated pads, large.
-$siteDays = Join-Path $PSScriptRoot '..\site\days'
-New-Item -ItemType Directory -Force -Path $siteDays | Out-Null
-foreach ($day in 1..31) {
-    $bmp = New-Image 256 256 1.0 $day
-    $bmp.Save((Join-Path $siteDays "day-$day.png"), [System.Drawing.Imaging.ImageFormat]::Png)
-    $bmp.Dispose()
-}
-
-Write-Host "Wrote assets to $assets and the homepage's dated icons to $siteDays"
+Write-Host "Wrote assets to $assets"

@@ -16,7 +16,6 @@ The first release you can install.
   invitations, and see guests' availability.
 - **Search** across all your accounts, a notification with Accept / Maybe / Decline when an invitation arrives, and a
   world clock in the side pane.
-- **Today's date on the icon**, on the taskbar and in the Start menu.
 - **Starts with Windows** and keeps running in the background for reminders; both can be turned off in Settings,
   and Quit is there too.
 - **Updates itself** from GitHub: updates download in the background and install the next time Dayflower starts, or

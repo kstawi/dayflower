@@ -35,7 +35,6 @@
   <ItemGroup>
     <Content Include="Assets\*.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\app.ico" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Assets\Days\*.ico" CopyToOutputDirectory="PreserveNewest" />
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
 
