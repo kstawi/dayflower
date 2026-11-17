@@ -1,8 +1,8 @@
 name: Homepage
 
 # Publishes the homepage (site/, with PRIVACY.md rendered into privacy.html) with GitHub Pages whenever it or the
-# privacy policy changes on main, at https://kstawi.github.io/dayflower/. Google's app verification needs both on a
-# domain Dayflower owns; a custom domain, if needed, goes in the repo's Pages settings, not in a CNAME file (see
+# privacy policy changes on main, at https://getdayflower.com/. Google's app verification needs both on a domain
+# Dayflower owns; the custom domain is set in the repo's Pages settings, not in a CNAME file (see
 # docs/google-cloud-setup.md, step 8).
 
 on:

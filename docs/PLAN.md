@@ -401,6 +401,13 @@ Steps 1 and 6 depend on Google and SignPath, so they start first; the rest is co
    review takes 2–3 business days, and if the brand is refused, a domain of its own is the fallback. Status, the scope reason and the video's shot list:
    [google-verification.md](google-verification.md). The homepage shows the week view with made-up events, in light or
    dark to match the visitor's setting (2026-11-09; the account shown is made up).
+
+   **Moved to a domain of its own, 2026-11-17:** Google's reviewers refused the `github.io` address on 2026-11-12
+   (homepage and privacy policy must be on a verified domain you own). The homepage is now at
+   `https://getdayflower.com/` (Cloudflare Registrar; DNS records pointing at GitHub Pages, set to DNS only; the domain
+   verified for the `kstawi` GitHub account; HTTPS enforced), with the old address redirecting there. The domain is
+   a verified Domain property in Search Console, and Branding and the scope reason point at it. The Verification
+   Center then showed the homepage and brand checks passed; next, a reply in Google's email thread so the review continues.
 2. **Unpackaged build, checked first.** Dayflower built as a self-contained app (the .NET runtime and Windows App SDK
    included, nothing to install first), then a check of everything that behaves differently without a package:
    - notifications show Dayflower's name and icon, and their buttons (Join, Snooze, Accept / Maybe / Decline) reach

@@ -86,40 +86,22 @@ A release fails straight away if either is missing, rather than shipping a Dayfl
 ## 8. Homepage and domain, for Google's verification
 
 Google's review of the Calendar permissions needs Dayflower's homepage and privacy policy on a domain you own,
-verified in Google Search Console. The homepage is in `site/` and the Homepage workflow publishes it with GitHub
-Pages.
+verified in Google Search Console. The homepage is in `site/`, and the Homepage workflow publishes it with GitHub
+Pages at Dayflower's own domain, `https://getdayflower.com/`. A GitHub Pages address isn't enough: Google refused
+`https://kstawi.github.io/dayflower/` in November 2026, although it was verified in Search Console.
 
-### First try: GitHub's free address
+Below, `example.com` stands for the domain.
 
-Google's rules don't say whether a GitHub Pages address counts as a domain you own, so this is worth a try before
-buying one. `github.io` is on the public suffix list, so `kstawi.github.io` is a domain of its own for Google.
-
-1. **Switch on Pages for the repo:** repo **Settings** › **Pages** › Source **GitHub Actions**. The homepage appears
-   at `https://kstawi.github.io/dayflower/`.
-2. **Verify `kstawi.github.io` with Google:** in [Google Search Console](https://search.google.com/search-console),
-   signed in as the Google account that owns the Dayflower Cloud project, add a **URL prefix** property for
-   `https://kstawi.github.io/` and choose the **HTML file** method. Google's file has to be served from the top of
-   that address, which is the user site: a repo named `kstawi.github.io` with that file (and an `index.html` that
-   forwards to `/dayflower/`), published from its main branch. Then click **Verify**. Keep the file there.
-3. **Fill in the consent screen's branding:** Google Cloud console › **Google Auth Platform** › **Branding**:
-   - App home page: `https://kstawi.github.io/dayflower/`
-   - Privacy policy: `https://kstawi.github.io/dayflower/privacy.html`
-   - Authorized domains: `kstawi.github.io`
-
-Then follow [google-verification.md](google-verification.md): the brand check, and the demo video for the data
-access review. If Google won't accept the address, use a domain of your own instead:
-
-### If Google refuses it: a domain of your own
-
-1. **Buy a domain** at a registrar of your choice (below, `example.com` stands for it). If it came with parking or
-   forwarding records, delete them.
-2. **Verify it for your GitHub account**, so no one else can attach it to their site: on GitHub, click your profile
+1. **Switch on Pages for the repo:** repo **Settings** › **Pages** › Source **GitHub Actions**.
+2. **Buy a domain** at a registrar of your choice. If it came with parking or forwarding records, delete them.
+3. **Verify it for your GitHub account**, so no one else can attach it to their site: on GitHub, click your profile
    picture › **Settings** › **Pages** (your profile's settings, not the repo's) › **Add a domain**, enter
    `example.com`, then add the TXT record it shows at your registrar: name `_github-pages-challenge-kstawi`,
    value as shown. Click **Verify** once it's in (DNS changes can take up to a day). Keep the record afterwards.
-3. **Give the repo's Pages the domain:** repo **Settings** › **Pages** › Custom domain `example.com` › **Save**.
+4. **Give the repo's Pages the domain:** repo **Settings** › **Pages** › Custom domain `example.com` › **Save**.
    A workflow-published site takes its domain from here, not from a CNAME file.
-4. **Point the domain at GitHub** at your registrar:
+5. **Point the domain at GitHub** at your registrar. At Cloudflare, set each record to **DNS only** (grey cloud):
+   proxied records keep GitHub from issuing the certificate.
 
    | Type | Name | Value |
    |---|---|---|
@@ -133,17 +115,20 @@ access review. If Google won't accept the address, use a domain of your own inst
    | AAAA | `@` | `2606:50c0:8003::153` |
    | CNAME | `www` | `kstawi.github.io` |
 
-   GitHub then serves the site at both names and redirects one to the other. Check with
-   `Resolve-DnsName example.com`.
-5. **HTTPS:** once GitHub has issued the certificate (usually minutes, sometimes up to a day), tick **Enforce
+   GitHub then serves the site at both names and redirects one to the other, and the old `github.io` address
+   redirects to the domain. Check with `Resolve-DnsName example.com`.
+6. **HTTPS:** once GitHub has issued the certificate (usually minutes, sometimes up to a day), tick **Enforce
    HTTPS** in the repo's Pages settings. If it hasn't come after a while, remove the custom domain and save it again.
-6. **Verify the domain with Google:** in [Google Search Console](https://search.google.com/search-console), signed
-   in as the Google account that owns the Dayflower Cloud project, add a **Domain** property for `example.com`
-   and add the TXT record (`google-site-verification=…`) it gives you at your registrar, then click **Verify**.
-7. **Fill in the consent screen's branding:** Google Cloud console › **Google Auth Platform** › **Branding**:
-   - App home page: `https://example.com`
+7. **Verify the domain with Google:** in [Google Search Console](https://search.google.com/search-console), signed
+   in as the Google account that owns the Dayflower Cloud project, add a **Domain** property for `example.com`,
+   choose instructions for **Any DNS provider**, add the TXT record (`google-site-verification=…`) it gives you at
+   your registrar, then click **Verify**. Keep the record afterwards.
+8. **Fill in the consent screen's branding:** Google Cloud console › **Google Auth Platform** › **Branding**:
+   - App home page: `https://example.com/`
    - Privacy policy: `https://example.com/privacy.html`
    - Authorized domains: `example.com`
+
+   Wait a day after verifying the domain before the brand check (Branding › Verify brand), as Google asks.
 
 After that the app is ready to submit for verification, with a demo video and a reason for each permission.
 

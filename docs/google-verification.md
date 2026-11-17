@@ -8,19 +8,19 @@ non-sensitive. The Google Cloud project has one OAuth client, **Dayflower deskto
 
 | Step | State |
 |---|---|
-| Homepage and privacy policy | Live at <https://kstawi.github.io/dayflower/> |
-| Search Console | `https://kstawi.github.io/` verified (HTML file in the `kstawi.github.io` repo), 2026-11-06; the exact homepage `https://kstawi.github.io/dayflower/` added 2026-11-09 (verified through its parent) |
-| Branding | Home page, privacy policy and authorized domain `kstawi.github.io` saved |
+| Homepage and privacy policy | Live at <https://getdayflower.com/> since 2026-11-17 (GitHub Pages with a custom domain, HTTPS enforced). The old `https://kstawi.github.io/dayflower/` redirects there |
+| Search Console | Domain property `getdayflower.com` verified 2026-11-17 with a DNS TXT record (keep it). Earlier, for the `github.io` address: `https://kstawi.github.io/` (HTML file in the `kstawi.github.io` repo, 2026-11-06) and the exact homepage (2026-11-09) |
+| Branding | Home page `https://getdayflower.com/`, privacy policy `https://getdayflower.com/privacy.html` and authorized domain `getdayflower.com`, saved 2026-11-17 (this updated the open verification request) |
 | Data access | All six scopes declared, with the reason below |
-| Brand verification | The automatic check failed on 2026-11-07, 11-09 and 11-10: "home page `https://kstawi.github.io/dayflower/` isn't registered to you", the last time more than a day after the exact homepage got its own property. Appealed on 2026-11-10 (Show problems › The problems found are incorrect › "The result is incorrect": both properties are verified, and a github.io address allows no DNS proof); a manual review takes 2–3 business days. If it's refused: a domain of its own, as in google-cloud-setup.md |
+| Brand verification | The automatic check failed on 2026-11-07, 11-09 and 11-10: "home page `https://kstawi.github.io/dayflower/` isn't registered to you". The appeal (2026-11-10) was refused by email on 2026-11-12: the homepage and privacy policy must be on a verified domain you own, then the request updated and Google's email answered. After the move to `getdayflower.com` (2026-11-17), Verification Center › progress shows "Homepage requirements" and "Brand promotion guidelines" passed (checked 2026-11-17) |
 | Demo video | Recorded 2026-11-09 (5:44, captions, no sound), on YouTube (unlisted) and linked under Data access. The link stays out of this public repo: the video shows the client ID and the signed-in accounts. It leaves out two shots: replying to an invitation (11) and removing the account (14), as removing revokes access for every Dayflower signed in with that account. Google showed the "already has some access" consent, so the scopes appear under "6 services" |
-| Data access verification | Submitted on 2026-11-10 together with the brand appeal, which Google's form combines; Verification Center: "brand and data access are being checked". Google replies by email to the developer contact address |
+| Data access verification | Submitted on 2026-11-10 together with the brand appeal; the scope reason's link was updated to the new domain on 2026-11-17. Verification Center: the form is with the trust and safety team (up to 4–6 weeks); privacy policy requirements being checked, then app functionality, data access and minimal scopes. Google's email of 2026-11-12 asks for a reply in its thread once the homepage is fixed |
 
 ## Why Dayflower needs `calendar.events`
 
 As entered under Data access › How will the scopes be used:
 
-> Dayflower is an open-source Windows desktop calendar (https://kstawi.github.io/dayflower/) that shows a user's
+> Dayflower is an open-source Windows desktop calendar (https://getdayflower.com/) that shows a user's
 > Google calendars and lets them manage their events. It uses calendar.events to read the user's events, to show them
 > in day, week, month and agenda views, raise the reminders set in Google Calendar as desktop notifications and offer
 > a Join button for video meetings; and to make the changes the user asks for in the app: create, edit, move and
@@ -61,7 +61,7 @@ and should stay in the video. Aim for 4–5 minutes, no narration needed: short 
 
 | # | Time | Do | Caption |
 |---|---|---|---|
-| 1 | 0:00 | Show the homepage <https://kstawi.github.io/dayflower/>, scroll to "How Dayflower uses your Google data". | Dayflower, a Windows calendar for Google Calendar. OAuth client: Dayflower desktop. |
+| 1 | 0:00 | Show the homepage <https://getdayflower.com/>, scroll to "How Dayflower uses your Google data". | Dayflower, a Windows calendar for Google Calendar. OAuth client: Dayflower desktop. |
 | 2 | 0:15 | Start Dayflower. It's empty: "Add a Google account to get started". Click **Add account**. | Signing in with Google. |
 | 3 | 0:25 | The browser opens Google's sign-in. Choose the demo account. On "Google hasn't verified this app", click **Advanced**, then **Go to Dayflower (unsafe)**. | The app is awaiting verification, so Google shows this warning. |
 | 4 | 0:45 | On the consent screen, click into the address bar and move along the URL until `client_id=…` shows (it matches the client ID under Clients). Show the app name and the list of permissions; tick every box if Google shows boxes. Click **Continue**. | The consent screen for the Dayflower desktop client, asking for calendar.events. |
@@ -74,7 +74,7 @@ and should stay in the video. Aim for 4–5 minutes, no narration needed: short 
 | 11 | 3:20 | Open the invitation from the other account. Under **Going?** click **Yes**, add a note, **Send**. In Google Calendar, the demo account is now "Going". | calendar.events (write): replying to an invitation. |
 | 12 | 3:45 | Create an event starting in two minutes, with a Google Meet link and a one-minute notification, and wait: Dayflower's reminder notification appears, with Join and Snooze. | Reminders come from the event's notification settings (calendar.events). |
 | 13 | 4:05 | Open "Demo planning", **Delete event**, **Don't send**. Refresh Google Calendar: it's gone. | calendar.events (write): deleting an event. |
-| 14 | 4:20 | Open Settings › Accounts › **Remove** for the demo account. Then show the privacy page <https://kstawi.github.io/dayflower/privacy.html>. | Removing the account deletes its data from this PC. Data goes only between Google and the user's PC. |
+| 14 | 4:20 | Open Settings › Accounts › **Remove** for the demo account. Then show the privacy page <https://getdayflower.com/privacy.html>. | Removing the account deletes its data from this PC. Data goes only between Google and the user's PC. |
 
 ### After recording
 
