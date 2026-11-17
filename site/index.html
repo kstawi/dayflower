@@ -12,6 +12,7 @@
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://getdayflower.com/">
   <meta property="og:image" content="https://getdayflower.com/screenshot-light.png">
+  <link rel="canonical" href="https://getdayflower.com/">
   <link rel="icon" href="favicon.png" type="image/png">
   <link rel="stylesheet" href="styles.css">
   <script>document.documentElement.classList.add('js');</script>
@@ -60,7 +61,7 @@
             Source code
           </a>
         </div>
-        <p class="fine">Free and open source · Windows 11 · x64 and ARM</p>
+        <p class="fine">x64 and ARM · installs without admin rights · updates itself</p>
       </div>
 
       <div class="wrap showcase">
@@ -75,8 +76,9 @@
         <div class="toast toast-reminder" aria-hidden="true">
           <div class="toast-head"><img src="icon.png" alt="">Dayflower<span class="toast-x">✕</span></div>
           <p class="toast-title">Design review</p>
-          <p class="toast-text">In 5 minutes · Studio, 2nd floor</p>
-          <div class="toast-buttons"><span class="tb accent">Join</span><span class="tb">Snooze</span></div>
+          <p class="toast-text">In 5 minutes · 14:00 – 15:00<br>Studio, 2nd floor</p>
+          <span class="toast-pick">5 minutes</span>
+          <div class="toast-buttons"><span class="tb accent">Join Google Meet</span><span class="tb">Snooze</span><span class="tb">Dismiss</span></div>
         </div>
 
         <div class="toast toast-invite" aria-hidden="true">
@@ -150,7 +152,8 @@
               <div class="mini-toast">
                 <span class="mt-head"><img src="icon.png" alt="">Dayflower</span>
                 <b>Lunch with Alex</b>
-                <small>Starting now · Bistro Nova</small>
+                <small>Starting now · 12:30 – 13:30<br>Bistro Nova</small>
+                <span class="toast-pick">5 minutes</span>
                 <span class="mt-buttons"><i>Snooze</i><i>Dismiss</i></span>
               </div>
             </div>
@@ -165,7 +168,7 @@
               <div class="hours"><span>13:00</span><span>14:00</span><span>15:00</span></div>
               <div class="lane">
                 <div class="drop-spot"></div>
-                <div class="block">Design review<small>14:00 – 15:00</small><span class="handle"></span></div>
+                <div class="block">Design review<small>1 hour</small><span class="handle"></span></div>
                 <svg class="cursor" viewBox="0 0 24 24"><path d="M5 3v15l4-4 3 7 3-1.3-3-6.7h6z" /></svg>
               </div>
             </div>
@@ -194,11 +197,6 @@
             </div>
             <div class="viz viz-windows" aria-hidden="true">
               <div class="theme-split"><span class="light"><i></i><i></i><i></i></span><span class="dark"><i></i><i></i><i></i></span></div>
-              <div class="taskbar">
-                <span class="tb-icon"></span><span class="tb-icon"></span>
-                <img class="tb-pad" src="icon.png" alt="">
-                <span class="tb-icon"></span>
-              </div>
               <div class="swatches"><i style="--c:#0067c0"></i><i style="--c:#c42b1c"></i><i style="--c:#e3008c"></i><i style="--c:#107c10"></i><i style="--c:#f7630c"></i></div>
             </div>
           </article>
@@ -242,10 +240,10 @@
         </dl>
 
         <ul class="points">
-          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="7" rx="2" /><rect x="4" y="13" width="16" height="7" rx="2" /><path d="M3 3l18 18" /></svg></span><strong>No servers.</strong> Dayflower talks directly from your PC to Google. The developer never receives, stores or sees your data.</li>
-          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg></span><strong>Kept on your PC.</strong> Your calendar is cached on your PC so Dayflower works offline, and your Google sign-in is encrypted for your Windows account.</li>
-          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" /><circle cx="12" cy="12" r="2.5" /><path d="M4 4l16 16" /></svg></span><strong>No tracking.</strong> No analytics, telemetry or ads, and your data is never sold or shared.</li>
-          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3m-7 0 1 13h8l1-13" /></svg></span><strong>Yours to remove.</strong> Removing an account or uninstalling Dayflower deletes its data from your PC; you can withdraw its access at <a href="https://myaccount.google.com/permissions">Google account permissions</a>.</li>
+          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="7" rx="2" /><rect x="4" y="13" width="16" height="7" rx="2" /><path d="M3 3l18 18" /></svg></span><p><strong>No servers.</strong> Dayflower talks directly from your PC to Google. The developer never receives, stores or sees your data.</p></li>
+          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2" /><path d="M8 20h8M12 16v4" /></svg></span><p><strong>Kept on your PC.</strong> Your calendar is cached on your PC so Dayflower works offline, and your Google sign-in is encrypted for your Windows account.</p></li>
+          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" /><circle cx="12" cy="12" r="2.5" /><path d="M4 4l16 16" /></svg></span><p><strong>No tracking.</strong> No analytics, telemetry or ads, and your data is never sold or shared.</p></li>
+          <li class="reveal"><span class="pt-icon"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3m-7 0 1 13h8l1-13" /></svg></span><p><strong>Yours to remove.</strong> Removing an account or uninstalling Dayflower deletes its data from your PC; you can withdraw its access at <a href="https://myaccount.google.com/permissions">Google account permissions</a>.</p></li>
         </ul>
         <p class="limited reveal">Dayflower's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including the Limited Use requirements. Read the full <a href="privacy.html">privacy policy</a>.</p>
       </div>
@@ -264,6 +262,8 @@
             </a>
             <a class="button large outline-light" href="https://github.com/kstawi/dayflower">View on GitHub</a>
           </div>
+          <p class="cta-note">The installer isn't code-signed yet, so Windows may say "Windows protected your PC": choose
+            More info, then Run anyway. Where Smart App Control is on, Dayflower can't be installed until it's signed.</p>
         </div>
       </div>
     </section>

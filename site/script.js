@@ -18,6 +18,19 @@ document.addEventListener('DOMContentLoaded', () => {
     reveal.forEach((el) => el.classList.add('in'));
   }
 
+  // The search tile types its word a whole letter at a time, holds it, and starts again. Without the script, or with
+  // reduced motion, the word just stays there.
+  const typed = document.querySelector('.typed');
+  if (typed && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const word = typed.textContent;
+    let tick = 0;
+    setInterval(() => {
+      tick = (tick + 1) % (word.length + 12); // 2 ticks empty, the word typed, then held for 10 ticks
+      typed.textContent = word.slice(0, Math.max(0, tick - 2));
+      typed.closest('.viz-search').classList.toggle('typing', typed.textContent !== word);
+    }, 220);
+  }
+
   // The feature tiles' soft light follows the pointer.
   document.querySelectorAll('.tile').forEach((tile) => {
     tile.addEventListener('pointermove', (e) => {
