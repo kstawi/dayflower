@@ -11,10 +11,12 @@ When you add a Google account, Google asks you to let Dayflower:
 
 - read and change your Google Calendar data: your calendars, events, invitations, guests, reminders and the
   free/busy times of people you invite, so Dayflower can show your calendar and make the changes you ask for;
-- see your account's email address, so Dayflower can tell your accounts apart.
+- see your Google account's email address, name and ID, so Dayflower can show which account each calendar
+  belongs to and tell your accounts apart.
 
 Dayflower only uses this data to show and manage your calendar on your PC. It doesn't use Google user data for
-advertising, and doesn't use it to develop, improve or train AI or machine learning models.
+advertising. It doesn't use Google user data, including raw or derived data received from Google Workspace APIs
+such as the Google Calendar API, to develop, improve or train any AI or machine learning model.
 
 ## Who Google user data is shared with
 
@@ -42,9 +44,13 @@ Dayflower's other connections carry no Google user data:
 
 Dayflower's use and transfer of information received from Google APIs adheres to the
 [Google API Services User Data Policy](https://developers.google.com/terms/api-services-user-data-policy),
-including the Limited Use requirements.
+including the Limited Use requirements. Its use of raw or derived user data received from Google Workspace APIs also
+adheres to the
+[Google Workspace API User Data and Developer Policy](https://developers.google.com/workspace/workspace-api-user-data-developer-policy).
 
 ## How your data is protected
+
+Dayflower protects the confidentiality of Google user data in these ways:
 
 - **No central copy.** Dayflower has no servers, so there is no developer database of users' data that could leak.
 - **Encrypted in transit.** Every connection to Google uses HTTPS, and Windows checks Google's certificates.
@@ -72,6 +78,9 @@ including the Limited Use requirements.
 
 If this policy changes, the new version is published here with a new effective date. The history of this file on
 GitHub shows every earlier version.
+
+If a new version of Dayflower uses Google user data in a new way, this policy and the release notes say so before
+that version is released. If it needs a new Google permission, Google asks for your consent before Dayflower gets it.
 
 ## Contact
 
